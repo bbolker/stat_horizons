@@ -1,0 +1,38 @@
+---
+title: "Draft/brain dump for SH presentation"
+author: Ben Bolker
+date: today
+format: pdf
+---
+
+## hour 1: introduction/overview
+
+* basic ideas behind mixed models
+* intuition: starting from simplest examples of problems with non-independence (e.g. paired t-test); giving some idea of the huge scope (e.g. GLMMs, unbalanced data, random-slope models, multiple random effects, spatial/temporal correlation ...)
+* present some examples for reference
+* some discussion of model specifications (primarily R but mention others: Stata, AS-REML, SAS ...)
+* brief overview of estimation methods (linear algebra- or optimization/autodiff-based; MCMC)
+* brief overview of inference challenges
+* similar material to https://bbolker.github.io/mm_iowa2024/notes/glmm.html
+
+(this might be overstuffed: will have to think about how to present/what to cut)
+
+## hour 2: workflow/extended example
+
+Present a mixed modeling workflow (R-based but general, in principle), using one of the examples suggested above
+
+* *a priori* modeling decisions (maximal model/power etc.)
+* troubleshooting
+* diagnosis and simplification
+* interpretation (marginal effects etc.)
+
+## hour 3: frontiers and challenges
+
+A selection of cutting-edge issues
+
+* scaling to big data
+* regularizing for small data
+* should we all go Bayesian? pros and cons
+* covariance structures (spatial/temporal, factor-analytic models, etc.)
+
+Leave plenty of time for questions!
