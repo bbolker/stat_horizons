@@ -1,0 +1,12 @@
+
+<svg width="200" height="300" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pole -->
+  <rect x="90" y="200" width="20" height="100" fill="gray" />
+
+  <!-- Diamond sign with rounded corners -->
+  <rect x="25" y="25" width="150" height="150" rx="20" ry="20" fill="yellow" stroke="black" stroke-width="5"
+        transform="rotate(45 100 100)" />
+
+  <!-- Question mark -->
+  <text x="100" y="120" font-size="80" text-anchor="middle" fill="black" font-family="sans-serif">?</text>
+</svg>

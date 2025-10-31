@@ -1,3 +1,5 @@
+* icon for 'dangerous bend/??' ?
+
 * table of contents
 * QR code
 * set up workstation in HH 
@@ -9,6 +11,26 @@
 * maximal models
 
 ## lecture 2: workflow
+
+* identify maximal model
+* specify other modeling decisions (response distribution, link function, etc.)
+* specify model selection strategy
+
+* exploratory (grouping-aware) data analysis
+
+* model fits
+* model selection (if necessary)
+
+* diagnostics
+
+* computationally intensive inference
+    * likelihood profiles
+    * (parametric) bootstrapping
+
+* easy inference
+   * effects plots (with partial residuals)
+   * prediction plots
+   * contrasts, coefficient estimates, etc. (coef plots)
 
 * add: full model from paper
 * work through workflow with (?) fire data set
