@@ -150,6 +150,7 @@ invisible(dev.off())
 
 ## Simplified versions of models
 
+- "complex random intercepts" [@scandolaReliability2024a]
 - `(1|b/a)` ([positive] compound symmetry) vs. `(a|b)`:
 $$
 (\textrm{intercept}, \textrm{slope}) =
@@ -330,11 +331,6 @@ Very slow!
 
 ## Inference: CIs on predictions etc.
 
-In general it's not as easy as one might like to get confidence intervals on predictions. *If* we ignore the effects of uncertainty in the random effects, then it can be done using the formula $\sigma^2 = \textrm{Diag}\left(X V X^\top\right)$
-
-```{r pred_CI,eval=FALSE}
-mm <- model.matrix(terms(fitted_model),newdat)
-se_pred <- sqrt(diag(mm %*% tcrossprod(vcov(fitted_model),mm)))
-```
+(possible now. distinction between `lme4` (conditions on theta-hat) vs `glmmTMB` (full))
 
 ## references  {.refs}

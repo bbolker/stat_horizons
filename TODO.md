@@ -5,11 +5,13 @@
 * set up workstation in HH 
    * wired ethernet
    * webcam 
+   * laptop as 'presenter notes'
 
 ## lecture 1: to add
 
-* maximal models
+* formulas (mention McElreath)
 * nested vs crossed
+* maximal model?
 
 ## lecture 2: workflow
 
@@ -38,7 +40,9 @@
 * model comparison, inference
 * save model list
 * env variable to re-fit models or not (i.e. whether to evaluate fitting chunks)
-* record fitting times?
+* record fitting times? (batch-run file rather than doing it within rmarkdown?)
+
+(works with master lme4, not currently with flexSigma ...)
 
 ## lecture 3: frontiers
 
@@ -53,10 +57,6 @@
 
 ## stuff from mixed_details.md
 
-* lecture 1
-   * formulas (mention McElreath)
-   * nested vs crossed
-   * maximal model?
    
 * lecture 3
    * random slopes etc

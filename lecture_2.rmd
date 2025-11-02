@@ -24,9 +24,12 @@ library(effects)
 
 ```{r load_data, include = FALSE}
 dd <- readRDS("data/ecoreg.rds")
-mod_list <- readRDS("outputs/mod_list.rds")
+fn_mod <- "outputs/mod_list.rds"
+if (file.exists(fn_mod)) {
+  mod_list <- readRDS(fn_mod)
+  invisible(list2env(mod_list, environment())) ## unpack
+}
 ```
-
 ## introduction to the example
 
 From @moritzrole2023a: `r nrow(dd)` global observations
@@ -46,7 +49,7 @@ plot(y ~ x, data = dd, xlab = "longitude", ylab = "latitude")
 
 ## exploration
 
-```{r}
+```{r read_data}
 dd <- readRDS("data/ecoreg.rds")
 ```
 
@@ -170,26 +173,28 @@ mod_list <- tibble::lst(m_moritz, m_full, m_fullmax, m_buildmer@model, m_buildme
 ```
 
 ```{r save_mod_list}
-saveRDS(mod_list, file = "outputs/mod_list.rds")
+odir <- "outputs"
+if (!dir.exists(odir)) dir.create(odir)
+saveRDS(mod_list, file = file.path(odir, "mod_list.rds"))
 ```
 
 ## diagnostics
 
-```{r}
-performance::check_model(m_buildmer_fix)
+```{r diag1}
+performance::check_model(m_buildmer_fix@model)
 pp1 <- DHARMa::simulateResiduals(m_builder_fix@model)
 pp2 <- DHARMa::simulateResiduals(m_builder_fix@model, use.u = TRUE)
 plot(pp2)
 ```
 
-```{r}
-plot(simulateResiduals(m4))
-performance::check_model(m4)
+```{r diag2}
+plot(simulateResiduals(m_buildmer_fix@model))
+performance::check_model(m_buildmer_fix@model)
 ```
 
 ## model comparison
 
-```{r}
+```{r AIC}
 ## skip ????
 AICtab(mod_list)
 cAIC_list <- lapply(mod_list, cAIC)
@@ -206,7 +211,7 @@ Downstream processing (contrasts, marginal effects, plotting, etc.)
 
 `effects`, `broom.mixed`, `sjPlot`, `marginaleffects`, `ggeffects`, `emmeans`
 
-```{r}
+```{r coefplot}
 tt <-  mod_list |>
   purrr::map_dfr(tidy, effects = "fixed", .id = "model", conf.int = TRUE) |>
   filter(term != "(Intercept)")
@@ -217,6 +222,6 @@ ggplot(tt, aes(estimate, term, colour = model)) +
   geom_vline(xintercept = 0, lty = 2)
 ```
 
-```{r}
+```{r effects}
 plot(allEffects(m_builder_fix@model))
 ```
