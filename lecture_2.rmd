@@ -1,8 +1,8 @@
 ---
 title: live coding (lecture 2/3)
 bibliography: glmm.bib
-params:
-  EVAL: !r identical(Sys.getenv("FIT_MODELS"), "true")
+## params:
+##  EVAL: !r identical(Sys.getenv("FIT_MODELS"), "true")
 ---
 
 ```{r load_pkgs}
@@ -16,6 +16,7 @@ library(buildmer)
 library(broom.mixed)
 library(bbmle)
 library(DHARMa)
+library(cAIC4)
 
 library(marginaleffects)
 library(emmeans)
@@ -27,7 +28,10 @@ dd <- readRDS("data/ecoreg.rds")
 fn_mod <- "outputs/mod_list.rds"
 if (file.exists(fn_mod)) {
   mod_list <- readRDS(fn_mod)
+  ## FIXME: restore buildmer fits here as well
   invisible(list2env(mod_list, environment())) ## unpack
+  buildmer_list <- readRDS("outputs/buildmer.rds")
+  invisible(list2env(buildmer_list, environment())) ## unpack
 }
 ```
 ## introduction to the example
@@ -62,7 +66,7 @@ Draw figures: `ggplot` is particular good for its flexibility &mdash;
 
 Competitors with similar capabilities include `tinyplot` (R): `plotnine`, `seaborn` (Python); `gadfly`, `AlgebraOfGraphic` (Julia), but `ggplot` is mature (e.g. see [ggplot extensions gallery](https://exts.ggplot2.tidyverse.org/gallery/))
 
-```{r}
+```{r ggplot0}
 gg0 <- ggplot(dd, aes(NPP_log_sc, mbirds_log, colour = biome, shape = flor_realms)) +
   geom_point() +
   geom_smooth(method = "lm", aes(group = biome_FR), alpha = 0.1)
@@ -78,7 +82,7 @@ gg2 <- gg0 + facet_wrap(~flor_realms)
 
 With pop-up tooltips (nice for identifying points interactively):
 
-```{r}
+```{r ggplotly, eval = FALSE}
 ggplotly(gg2)
 ```
 
@@ -105,11 +109,11 @@ form <- mbirds_log ~ (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
 
 Fit the model and take a first glance at the RE covariance matrix:
 
-```{r fit_full}
+```{r fit_full, eval = FALSE}
 m_full <- lmer(form, data = dd)
 ```
 
-```{r}
+```{r varcor_full}
 VarCorr(m_full)
 ```
 
@@ -126,13 +130,13 @@ max_form2 <- reformulate(max_form, response = "mbirds_log")
 
 Fit the ridiculously full model (use `calc.derivs=FALSE`)
 
-```{r fit_fullmax}
+```{r fit_fullmax, eval = FALSE}
 m_fullmax <- lmer(max_form2, data = dd, control = lmerControl(calc.derivs = FALSE))
 ```
 
 Trying out the `buildmer` package to automatically reduce the model:
 
-```{r fit_buildmer1, results = "hide"}
+```{r fit_buildmer1, results = "hide", eval = FALSE}
 m_buildmer <- buildmer(form, data = dd)
 ```
 
@@ -140,7 +144,7 @@ Decides on intercepts only at each stage. Unfortunately it also does model selec
 
 Force `buildmer` to keep all of the fixed-effect terms:
 
-```{r fit_buildmer2}
+```{r fit_buildmer2, eval = FALSE}
 m_buildmer_fix <- buildmer(form, data = dd,
                            buildmerControl =
                              buildmerControl(
@@ -169,34 +173,47 @@ m_moritz <- lmer(form2, data = dd)
 ```
 
 ```{r mod_list}
-mod_list <- tibble::lst(m_moritz, m_full, m_fullmax, m_buildmer@model, m_buildmer_fix@model)
+mod_list <- tibble::lst(m_moritz, m_full, m_fullmax,
+                        m_buildmer_mod = m_buildmer@model,
+                        m_buildmer_fix_mod = m_buildmer_fix@model)
 ```
 
 ```{r save_mod_list}
 odir <- "outputs"
 if (!dir.exists(odir)) dir.create(odir)
 saveRDS(mod_list, file = file.path(odir, "mod_list.rds"))
+saveRDS(tibble::lst(m_buildmer, m_buildmer_fix),
+        file = file.path(odir, "buildmer.rds"))
+```
+
+```{r echo = FALSE, eval = FALSE}
+mod_list <- tibble::lst(m_moritz, m_full, m_fullmax,
+                        m_buildmer_mod = `m_buildmer@model`,
+                        m_buildmer_fix_mod = `m_buildmer_fix@model`)
 ```
 
 ## diagnostics
 
 ```{r diag1}
-performance::check_model(m_buildmer_fix@model)
-pp1 <- DHARMa::simulateResiduals(m_builder_fix@model)
-pp2 <- DHARMa::simulateResiduals(m_builder_fix@model, use.u = TRUE)
+performance::check_model(m_buildmer_fix_mod)
+pp1 <- DHARMa::simulateResiduals(m_buildmer_fix_mod)
+pp2 <- DHARMa::simulateResiduals(m_buildmer_fix_mod, use.u = TRUE)
 plot(pp2)
 ```
 
 ```{r diag2}
-plot(simulateResiduals(m_buildmer_fix@model))
-performance::check_model(m_buildmer_fix@model)
+plot(simulateResiduals(m_buildmer_fix_mod))
+performance::check_model(m_buildmer_fix_mod)
 ```
 
 ## model comparison
 
 ```{r AIC}
-## skip ????
 AICtab(mod_list)
+```
+
+```{r cAIC, eval = FALSE}
+## skip ????
 cAIC_list <- lapply(mod_list, cAIC)
 cAIC_vec <- sapply(cAIC_list, \(x) x$caic)
 cAIC_vec - min(cAIC_vec)
@@ -223,5 +240,5 @@ ggplot(tt, aes(estimate, term, colour = model)) +
 ```
 
 ```{r effects}
-plot(allEffects(m_builder_fix@model))
+plot(allEffects(m_buildmer_fix_mod))
 ```

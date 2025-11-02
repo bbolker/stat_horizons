@@ -1,4 +1,4 @@
-ALL: lecture_1.html lecture_2.html
+ALL: lecture_1.html lecture_2.html lecture_3.html
 
 %.html: %.rmd ./glmm.bib
 	Rscript -e "rmarkdown::render('$<')"
