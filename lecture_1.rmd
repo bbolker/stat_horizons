@@ -1,6 +1,7 @@
 ---
 title: "mixed models: introduction"
 author: "Ben Bolker"
+date: "18 November 2025"
 bibliography: "glmm.bib"
 csl: apa.csl
 output:
@@ -83,6 +84,16 @@ scale_fill_discrete <- function(...) {
 }
 ```
 
+## Mixed models (overview)
+
+* *tabular* data (row = observation, column = variable)
+* *regression* models
+   * continuous and categorical *predictor* variables
+   * single (univariate) numeric *response* variable
+* with one or more *grouping variables* ('blocks', 'clusters', ...)
+* for prediction or inference
+* typically for 'medium-sized' data (e.g. $10^6$ rows, $10^3$ clusters, 10-20 predictors)
+
 ## Mixed models (easy version)
 
 * take a standard linear-type model (e.g. $y_i = a + b x_i + \epsilon_i$)
@@ -123,16 +134,17 @@ ggplot(dd, aes(g, y)) +
 * multiple grouping variables (random effects *terms*)
 * multiple effects varying across groups (*random slopes models* etc.)
 * non-Normal *conditional distributions*
-   * exponential family (à la generalized linear models): binomial/Poisson/etc.
-   * weirder
+   * exponential dispersion family (à la GLMs): binomial/Poisson/etc.
+   * weirder (non-exponential): Tweedie, $t$ distribution, Beta, ...
 * some nonlinearity
    * *link functions* (log, logit, etc.)
+* structured covariances: autoregressive, compound symmetric, regression splines ...
 
----
+##
 
-![image](pix/models-glmm.png)
-
-## Coral protection from seastars (*Culcita*) by symbionts [@mckeon_multiple_2012]
+```{r out.width='100%'}
+knitr::include_graphics("pix/models-glmm.png")
+```
 
 ```{r culcita1,cache=TRUE,message=FALSE,warning=FALSE}
 ## Culcita fits
@@ -208,7 +220,7 @@ allEsts <- transform(allEsts,
    p=factor(p,levels=gtools::mixedsort(unique(p))))
 ```
 
-```{r bplot1,fig.width=8,fig.height=6}
+```{r bplot1,fig.width=8,fig.height=6, eval = FALSE}
 op <- par(las=1,cex=1.5,bty="l")
 bb <- barplot(p,ylab="Number of blocks",xlab="Symbionts",
                main="Number of predation events")
@@ -425,6 +437,111 @@ See also @Crawley2002; @gelman_analysis_2005
      * many samples per block (shrinkage unimportant)
      * few blocks (little advantage; bad variance estimates)
 
+Model setup
+============
+
+## Formulas
+
+- random effects specified with `|` as `(a|g1) + (b|g2) + ...`
+- right-hand side is the *grouping variable* (always categorical, usually a factor)
+- left-hand side is the *varying term* (most often 1)s
+- terms separated by `+` are independent
+
+```{r ftab,echo=FALSE,results="asis"}
+ftab <- matrix(c("β_0 + β_{1}X_{i} + e_{si}",
+                 "n/a (Not a mixed-effects model)",
+                 "(β_0 + b_{S,0s}) + β_{1}X_i + e_{si}",
+                 "∼ X + (1∣Subject)",
+                 "(β_0 + b_{S,0s}) +  (β_{1} + b_{S,1s}) X_i + e_{si}",
+                 "~ X + (1 + X∣Subject)",
+                 "(β_0 + b_{S,0s} + b_{I,0i}) + (β_{1} + b_{S,1s}) X_i + e_{si}",
+                 "∼ X + (1 + X∣Subject) + (1∣Item)",
+                 "As above, but $S_{0s}$, $S_{1s}$ independent",
+                 "∼ X + (1∣Subject) + (0 + X∣ Subject) + (1∣Item)", 
+                 "(β_0 + b_{S,0s} + b_{I,0i}) + β_{1}X_i + e_{si}",
+                 "∼ X + (1∣Subject) + (1∣Item)", 
+                 "(β_0 + b_{I,0i}) +  (β_{1} + b_{S,1s})X_i + e_{si}",
+                 "∼ X + (0 + X∣Subject) + (1∣Item)"),
+               byrow=TRUE,ncol=2,
+               dimnames=list(NULL,c("equation","formula")))
+ftab <- data.frame(ftab,stringsAsFactors=FALSE)
+ff <- !grepl("As above",ftab$equation)
+ftab$equation[ff] <- sprintf("$%s$",ftab$equation[ff])
+ff <- !grepl("n/a",ftab$formula)
+ftab$formula[ff] <- sprintf("`%s`",ftab$formula[ff])
+pander::pander(ftab,justify="left")
+```
+
+Modified from: http://stats.stackexchange.com/questions/13166/rs-lmer-cheat-sheet?lq=1 (Livius). Subscripts $\{S,I\}$ refer to Subject vs Item effects. Lower-case $\{s,i\}$ indicate particular subjects/items. $\{0,1\}$ refer to intercept vs slope effects.
+
+## Nested vs crossed designs
+
+Nested: sub-unit IDs only measured within a single larger unit.
+e.g.: Plot1 in Block1 independent of Plot1 in Block2
+
+![](pix/CV_nested.png)
+
+Crossed: sub-unit IDs can be measured in multiple larger units.
+e.g. year, site
+
+![](pix/CV_crossed.png)
+
+Unique coding: removes ambiguity
+
+![](pix/CV_unique.png)
+
+Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/crossed-vs-nested-random-effects-how-do-they-differ-and-how-are-they-specified)
+
+## Formulas, interactions, nesting etc.
+
+`a*b` = main effects plus interaction, `a:b` = interaction only, `a/b` = `a` + `a:b`
+
+- Nested: `(1|f/g)` equivalent to `(1|f) + (1|f:g)`. e.g. subplots vary within plots (but "subplot 1 of every plot" isn't meaningful)
+- Crossed: `(1|f) + (1|g)`. e.g. years vary, and plots vary independently
+- Crossed+: `(1|f) + (1|g) + (1|f:g)`. e.g. years vary, and plots vary independently, and plots also vary *within* years (for LMMs, assumes >1 observation per plot/year combination). (`(1|f*g)` should be allowed but ...)
+
+Don't need explicit nesting if your sub-groups are uniquely labeled (i.e. `A1`, `A2`, ..., `B1`, `B2`, ...)
+
+## Factors varying across groups
+
+These can be difficult, because they generate large variance-covariance matrices. E.g for a four-level factor, R parameterizes the model as $\beta_0$ (intercept), $\beta_1$ (level 2 - level 1), $\beta_2$ (level 3 - level 1), $\beta_3$ (level 4 - level 1). This gives us
+
+$$
+(\textrm{intercept}, \textrm{slope}) =
+\textrm{MVN}\left(\boldsymbol 0,
+\left[
+\begin{array}{cccc}
+\sigma^2_{\{b|1\}}  & . & . & . \\
+\sigma_{\{b|1\},\{b|a_{21}\}} &
+\sigma^2_{\{b|a_{21}\}} & . & .  \\
+\sigma_{\{b|1\},     \{b|a_{31}\}} &
+\sigma_{\{b|a_{21}\},\{b|a_{31}\}} &
+\sigma^2_{\{b|a_{31}\}} & . \\
+\sigma_{\{b|1\}     ,\{b|a_{41}\}} &
+\sigma_{\{b|a_{21}\},\{b|a_{41}\}} &
+\sigma_{\{b|a_{31}\},\{b|a_{41}\}} &
+\sigma^2_{\{b|a_{41}\}} 
+\end{array}
+\right]
+\right)
+$$
+
+## What is the maximal model?
+
+- Which effects vary *within* which groups?
+- If effects don't vary within groups, then we *can't* estimate among-group variation in the effect
+     - convenient
+     - maybe less powerful (among-group variation is lumped into residual variation)
+- e.g. female rats exposed to different doses of radiation, multiple pups per mother, multiple measurements per pup (labeled by time). Maximal model ... ?
+
+Maximal model **often won't work**
+
+e.g.
+
+- *Culcita* (coral-reef) example: randomized-block design, so each treatment (none/crabs/shrimp/both) is repeated in every block; thus `(treat|block)` is maximal
+- CBPP data: each herd is measured in every period, so in principle we could use `(period|herd)`, not just `(1|herd)`
+
+
 Estimation
 ==========
 
@@ -447,7 +564,7 @@ dd$y <- simulate(~1+(1|f),newdata=dd,
                  family=gaussian,seed=101,
                  newparams=list(theta=1,beta=0,sigma=1))[[1]]
 ggplot(dd,aes(x=f,y=y))+geom_point()+
-    stat_summary(fun.y=mean,geom="point",size=3,colour="blue",
+    stat_summary(fun=mean,geom="point",size=3,colour="blue",
                  pch=3)+
      geom_point(data=subset(dd,y<(-2)),colour="red",size=2)+
          theme_update(panel.grid.major=element_blank(),

@@ -1,0 +1,25 @@
+library(Matrix)
+library(reformulas)
+library(lme4)
+data("sleepstudy", package = "lme4")
+form <- Reaction ~ 1 + Days + (Days | Subject)
+m1 <- mkReTrms(reformulas::findbars(form), sleepstudy)
+Zt <- m1$Zt
+S <- crossprod(m1$Lambdat)
+image(S)
+vals <- with(m1, t(Zt) %*% S %*% Zt)
+image(vals)
+fit <- lmer(form, data = sleepstudy)
+L2 <-getME(fit, "Lambdat")
+S2 <- crossprod(L2)
+image(S2, useAbs=FALSE, useRaster = TRUE)
+image(S2, useAbs=FALSE)
+vals <- t(Zt) %*% S2 %*% Zt
+image(vals, useAbs = FALSE)
+
+fit2 <- lmer(y ~ 1 + (1|s) + (1|dept/d), data = InstEval)
+L2 <-getME(fit2, "Lambdat")
+image(S2 <- crossprod(L2))
+Zt2 <- getME(fit2, "Zt")
+Q2 <- t(Zt2) %*% S2 %*% Zt2
+image(Q2)

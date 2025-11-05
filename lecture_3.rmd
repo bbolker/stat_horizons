@@ -83,40 +83,8 @@ scale_fill_discrete <- function(...) {
 }
 ```
 
-## Random-slopes models: what does `(x|g)` really do?
-
-- equivalent to `(1+x|g)`
-- both intercept (baseline) and slope vary across groups
-- estimates **bivariate** zero-centered distribution:
-
-$$
-(\textrm{intercept}, \textrm{slope}) =
-\textrm{MVN}\left(\boldsymbol 0,
-\left[
-\begin{array}{cc}
-\sigma^2_{\textrm{int}} &
-\sigma_{\textrm{int},\textrm{slope}} \\
-\sigma_{\textrm{int},\textrm{slope}} & 
-\sigma^2_{\textrm{slope}}
-\end{array}
-\right]
-\right)
-$$
-
-## Other FAQs
-
-- Can you have continuous variables as REs?  
-A: yes, as *varying terms*, but not as *grouping variables*
-- Can a variable be in the model as both FE and RE?  
-A: only in the special case where $x$ is numeric but discrete (e.g. year) and >1 observation per $x$ value;  
-FE describes overall trend, RE describes variation around the trend
-
-## What is a practical model?
-
-- Fits aren't **singular**
-- singular = zero variances, +/- 1 correlations
-- More subtle for larger models:  
-`all(abs(getME(x,"theta"))>1e-4)`
+Troubleshooting
+======
 
 ## Why are fits singular?
 
@@ -240,7 +208,7 @@ PCA of RE variance-covariance matrix:
 rePCA(m1)
 ```
 
-# Inference
+# Inference details
 
 ## Likelihood
 
@@ -262,7 +230,6 @@ more important for variance parameters than fixed-effect parameters
 ## Finite-size corrections
 
 e.g. Normal vs. $t$
-
 
 ## Posterior predictive simulation
 

@@ -7,6 +7,8 @@
    * webcam 
    * laptop as 'presenter notes'
 
+Pictures of covariance matrices (V, ZVZ')
+
 ## lecture 1: to add
 
 * formulas (mention McElreath)
@@ -54,7 +56,7 @@
 * structured covariances (splines etc etc etc)
 * inference details:
 * causal inference? (DAGs etc; Mundlak)
-
+* 
 ## stuff from mixed_details.md
 
    
