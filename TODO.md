@@ -1,10 +1,10 @@
 * icon for 'dangerous bend/??' ?
 
+* improve/abbreviate bibliography (reflist2?)
+
 * table of contents
 * QR code
 * set up workstation in HH 
-   * wired ethernet
-   * webcam 
    * laptop as 'presenter notes'
 
 Pictures of covariance matrices (V, ZVZ')

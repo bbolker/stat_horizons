@@ -300,4 +300,72 @@ Very slow!
 
 (possible now. distinction between `lme4` (conditions on theta-hat) vs `glmmTMB` (full))
 
+# Challenges & open questions
+
+## On beyond `lme4`
+
+-  `glmmTMB`: zero-inflated and other distributions
+-  `brms`,`rstanarm`: interfaces to Stan
+-  `INLA`: spatial and temporal correlations
+- [rethinking package](https://github.com/rmcelreath/rethinking)
+
+## Toolboxes
+
+- JAGS (R: `rjags`, `r2jags`)
+- TensorFlow (R: `greta`)
+- NIMBLE (R: `nimble` package)
+- Stan (R: `rstan`)
+- TMB (R: `TMB`)
+
+## On beyond R
+
+-   Julia: `MixedModels.jl` package
+-   SAS: PROC MIXED, NLMIXED
+-   AS-REML
+-   Stata (GLLAMM, xtmelogit)
+-   HLM, MLWiN
+
+![image](pix/300px-On_Beyond_Zebra.jpg){width="3cm"}
+
+## Challenges
+
+-   Small clusters: need AGQ/MCMC
+-   Small numbers of clusters: need finite-size corrections (KR/PB/MCMC)
+-   Small data sets: issues with *singular* fits  
+[@barr_random_2013] vs. [@bates_parsimonious_2015]
+-   Big data: speed!
+-   Model diagnosis
+-   Confidence intervals accounting for uncertainty in variances
+
+## The need for speed [@brooks_modeling_2017]
+
+<!-- https://tex.stackexchange.com/questions/250623/how-to-generate-a-4-up-table-of-images-with-pandoc -->
+
+
+![](pix/bigfit2.png)
+
+## more speed
+
+![](pix/bigfit1.png)
+ 
+
+## Spatial and temporal correlations
+
+-   Sometimes blocking takes care of non-independence ...
+-   but sometimes there is temporal or spatial correlation *within* blocks
+-    ... also phylogenetic ... [@ives_statistics_2006]
+-   "G-side" vs. "R-side" effects
+-   tricky to implement for GLMMs, but new possibilities on the horizon
+[@Rue+2009; @rousset_testing_2014];
+[https://github.com/stevencarlislewalker/lme4ord](lme4ord package)
+
+## Next steps
+
+-   Complex random effects:   
+    regularization, model selection, penalized methods (lasso/fence)
+-   Flexible correlation and variance structures
+-   Flexible/nonparametric random effects distributions
+-   hybrid & improved MCMC methods
+-   *Reliable* assessment of out-of-sample performance
+
 ## references  {.refs}

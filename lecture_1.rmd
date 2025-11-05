@@ -4,6 +4,8 @@ author: "Ben Bolker"
 date: "18 November 2025"
 bibliography: "glmm.bib"
 csl: apa.csl
+nocite: |
+  @banta_comprehensive_2010
 output:
   ioslides_presentation
 header-includes:
@@ -68,6 +70,7 @@ library(tidyverse)
 library(MASS)
 library(nlme)
 library(grid)
+library(ggbeeswarm)
 zmargin <- theme(panel.spacing=unit(0,"lines"))
 library(scales) ## for 'scientific', 'trans_format'
 theme_set(theme_bw())
@@ -104,7 +107,7 @@ $$
 y_{ij} = a + b x_{ij} + \alpha_i + \epsilon_{ij}
 $$
 
-## single group, categorical predictor (= one-way ANOVA)
+## single group, categorical predictor<br>(= one-way ANOVA)
 
 ```{r oneanova, echo = FALSE, fig.width = 8}
 ngrp <- 8
@@ -118,14 +121,25 @@ dd$y <- simulate( ~ 1 + trt + (1|g),
                                   theta = 2,
                                   sigma = 0.2))[[1]]
 
-ggplot(dd, aes(g, y)) +
+## subsample to get lack of balance
+samp <- sample(nrow(dd), size = round(0.7*nrow(dd)), replace = FALSE)
+dds <- dd[samp,]
+mdat <- data.frame(x0 = c(0.5, 4.5), x1 = c(4.5, 8.5), y = c(1, 1.5),
+                   trt = factor(c("control", "treatment")))
+
+
+ggplot(dds, aes(g, y)) +
   geom_boxplot(aes(fill = trt), alpha = 0.2) +
-  geom_jitter(aes(colour = trt, shape = trt),
-              width = 0.2, height = 0) +
+  ## geom_jitter(aes(colour = trt, shape = trt),
+  ##              width = 0.2, height = 0) +
+  geom_beeswarm(aes(colour = trt, shape = trt)) +
   labs(x = "group", y = "response",
        title = expression(list(beta == (list(1,0.5)),
                                sigma[alpha]==0.4,
-                               sigma[r] == 0.2)))
+                               sigma[r] == 0.2))) +
+  geom_segment(aes(x = x0, xend = x1, y = y, yend = y,
+                   colour = trt), data = mdat, lty = 2,
+               alpha = 0.8)
 ```
 
 ## The mixed model universe
@@ -135,9 +149,8 @@ ggplot(dd, aes(g, y)) +
 * multiple effects varying across groups (*random slopes models* etc.)
 * non-Normal *conditional distributions*
    * exponential dispersion family (à la GLMs): binomial/Poisson/etc.
-   * weirder (non-exponential): Tweedie, $t$ distribution, Beta, ...
-* some nonlinearity
-   * *link functions* (log, logit, etc.)
+   * weirder: Tweedie, $t$ distribution, Beta, ...
+* nonlinearity: *link functions* (log, logit, etc.)
 * structured covariances: autoregressive, compound symmetric, regression splines ...
 
 ##
@@ -232,7 +245,7 @@ text(bb[col(p)][p>0],midb[p>0],c(0,1,2)[row(p)][p>0])
 par(op)
 ```
 
-## Environmental stress: *Glycera* cell survival (D. Julian unpubl.)
+## Experimental: bloodworm cell survival
 
 ```{r glycera}
 x <- read.csv("data/Live-Dead Tabulated Counts.csv")
@@ -302,12 +315,13 @@ levelplot(all~factor(H2S)*factor(Cu)|Osm*Anoxia,
                 col.region=rb.colors(100), ## brewer.pal(11,"RdBu"), ## rb.colors(100),
                 data=x5,
                 xlab=expression(H[2]*S),
-                ylab="Copper")
+          ylab="Copper",
+          sub = "D. Julian, unpublished data")
 trellis.par.set(theme=orig) ## restore settings
 ## FIXME: redo in ggplot2?  LOW PRIORITY
 ```
 
-## *Arabidopsis* response to fertilization & herbivory [@banta_comprehensive_2010]
+## *Arabidopsis*: fertilization & herbivory
 
 ```{r arabplot1,fig.width=7,fig.height=6}
 panel.stripplot2 <-
@@ -328,19 +342,21 @@ stripplot(jltf ~ amd|nutrient,
                   amount=0.05)),
                 strip=strip.custom(strip.names=c(TRUE,TRUE)),
                 groups=gen, type=c('p','a'),
-                ylab="Log(1+fruit set)")
+          ylab="Log(1+fruit set)",
+          sub = "Banta et al. 2010")
 ##                main="panel: nutrient, color: genotype")
 ## trellis.par.set(theme=orig) ## restore settings
 ```
 
-## Coral demography (J.-S. White unpubl.)
+## Coral demography
 
 ```{r coral_demog,warning=FALSE}
 L <- load("data/m.acr.jagsout.RData")
 L2 <- load("data/m.acr.lme4out.RData")
 L3 <- load("data/demog.mort.18apr.RData")
 source("R/demog_mort_funs.R")
-plotfun(j.red2,m.acr.nofr,drop.cols=c(4,8))
+pp <- plotfun(j.red2,m.acr.nofr,drop.cols=c(4,8))
+pp + labs(subtitle = "J.-S. White, unpublished")
 ```
 
 ## Simple mixed models<br>(scalar, intercept-only)
@@ -370,7 +386,7 @@ y_{ij} & = \beta_0 + \beta_1 x_{ij} + \epsilon_{0,ij} + \epsilon_{1,j} +
 $$
 
 - variation in the *effect* of a treatment or covariate across groups
-- variation in intercept, slope allowed to be correlated
+- group intercept, slope offsets are correlated
 
 ## General definition
 
@@ -430,7 +446,7 @@ the grouping variable;
 
 See also @Crawley2002; @gelman_analysis_2005
 
-## Avoiding MM
+## Avoiding mixed models
 
 * average: for *nested* LMMs (when uninterested in within-group variation) [@murtaugh_simplicity_2007] 
 * use fixed effects (or two-stage models) instead of random effects when
@@ -447,6 +463,8 @@ Model setup
 - left-hand side is the *varying term* (most often 1)s
 - terms separated by `+` are independent
 
+## Formula definitions
+
 ```{r ftab,echo=FALSE,results="asis"}
 ftab <- matrix(c("β_0 + β_{1}X_{i} + e_{si}",
                  "n/a (Not a mixed-effects model)",
@@ -457,7 +475,7 @@ ftab <- matrix(c("β_0 + β_{1}X_{i} + e_{si}",
                  "(β_0 + b_{S,0s} + b_{I,0i}) + (β_{1} + b_{S,1s}) X_i + e_{si}",
                  "∼ X + (1 + X∣Subject) + (1∣Item)",
                  "As above, but $S_{0s}$, $S_{1s}$ independent",
-                 "∼ X + (1∣Subject) + (0 + X∣ Subject) + (1∣Item)", 
+                 "∼ X + (1||Subject) + (1∣Item)", 
                  "(β_0 + b_{S,0s} + b_{I,0i}) + β_{1}X_i + e_{si}",
                  "∼ X + (1∣Subject) + (1∣Item)", 
                  "(β_0 + b_{I,0i}) +  (β_{1} + b_{S,1s})X_i + e_{si}",
@@ -474,7 +492,7 @@ pander::pander(ftab,justify="left")
 
 Modified from: http://stats.stackexchange.com/questions/13166/rs-lmer-cheat-sheet?lq=1 (Livius). Subscripts $\{S,I\}$ refer to Subject vs Item effects. Lower-case $\{s,i\}$ indicate particular subjects/items. $\{0,1\}$ refer to intercept vs slope effects.
 
-## Nested vs crossed designs
+## Nesting vs crossing
 
 Nested: sub-unit IDs only measured within a single larger unit.
 e.g.: Plot1 in Block1 independent of Plot1 in Block2
@@ -494,21 +512,18 @@ Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/
 
 ## Formulas, interactions, nesting etc.
 
-`a*b` = main effects plus interaction, `a:b` = interaction only, `a/b` = `a` + `a:b`
+- Nested: `(1|f/g)` $\equiv$ `(1|f) + (1|f:g)`. Subplots vary within plots, no commonality across plots
+- Crossed: `(1|f) + (1|g)`. Years vary; plots vary independently
+- Crossed+: `(1|f*g)` $\equiv$ `(1|f) + (1|g) + (1|f:g)`. Years vary, plots vary independently, plots vary within years (need >1 observation per plot/year combination).
 
-- Nested: `(1|f/g)` equivalent to `(1|f) + (1|f:g)`. e.g. subplots vary within plots (but "subplot 1 of every plot" isn't meaningful)
-- Crossed: `(1|f) + (1|g)`. e.g. years vary, and plots vary independently
-- Crossed+: `(1|f) + (1|g) + (1|f:g)`. e.g. years vary, and plots vary independently, and plots also vary *within* years (for LMMs, assumes >1 observation per plot/year combination). (`(1|f*g)` should be allowed but ...)
-
-Don't need explicit nesting if your sub-groups are uniquely labeled (i.e. `A1`, `A2`, ..., `B1`, `B2`, ...)
+**Don't need explicit nesting** if sub-groups are uniquely labeled (i.e. `A1`, `A2`, ..., `B1`, `B2`, ...)
 
 ## Factors varying across groups
 
-These can be difficult, because they generate large variance-covariance matrices. E.g for a four-level factor, R parameterizes the model as $\beta_0$ (intercept), $\beta_1$ (level 2 - level 1), $\beta_2$ (level 3 - level 1), $\beta_3$ (level 4 - level 1). This gives us
+Can generate large variance-covariance matrices. For a four-level factor, we have $\beta_0$ (intercept), $\beta_1$ (level 2 - level 1), $\beta_2$ (level 3 - level 1), $\beta_3$ (level 4 - level 1).
 
 $$
-(\textrm{intercept}, \textrm{slope}) =
-\textrm{MVN}\left(\boldsymbol 0,
+\Sigma = 
 \left[
 \begin{array}{cccc}
 \sigma^2_{\{b|1\}}  & . & . & . \\
@@ -523,7 +538,6 @@ $$
 \sigma^2_{\{b|a_{41}\}} 
 \end{array}
 \right]
-\right)
 $$
 
 ## What is the maximal model?
@@ -534,7 +548,7 @@ $$
      - maybe less powerful (among-group variation is lumped into residual variation)
 - e.g. female rats exposed to different doses of radiation, multiple pups per mother, multiple measurements per pup (labeled by time). Maximal model ... ?
 
-Maximal model **often won't work**
+## Maximal model is often too complex
 
 e.g.
 
@@ -544,9 +558,6 @@ e.g.
 
 Estimation
 ==========
-
-Overview
---------
 
 ## Maximum likelihood estimation
 
@@ -732,74 +743,6 @@ approximation for GLM(M)s
 
 -   If we have a good sample from the posterior distribution (Markov chains have converged etc. etc.) we get most of the inferences we want for free by summarizing the marginal posteriors
 -   *post hoc* Bayesian methods: use deterministic/frequentist methods to find the maximum, then sample around it
-
-# Challenges & open questions
-
-## On beyond `lme4`
-
--  `glmmTMB`: zero-inflated and other distributions
--  `brms`,`rstanarm`: interfaces to Stan
--  `INLA`: spatial and temporal correlations
-- [rethinking package](https://github.com/rmcelreath/rethinking)
-
-## Toolboxes
-
-- JAGS (R: `rjags`, `r2jags`)
-- TensorFlow (R: `greta`)
-- NIMBLE (R: `nimble` package)
-- Stan (R: `rstan`)
-- TMB (R: `TMB`)
-
-## On beyond R
-
--   Julia: `MixedModels.jl` package
--   SAS: PROC MIXED, NLMIXED
--   AS-REML
--   Stata (GLLAMM, xtmelogit)
--   HLM, MLWiN
-
-![image](pix/300px-On_Beyond_Zebra.jpg){width="3cm"}
-
-## Challenges
-
--   Small clusters: need AGQ/MCMC
--   Small numbers of clusters: need finite-size corrections (KR/PB/MCMC)
--   Small data sets: issues with *singular* fits  
-[@barr_random_2013] vs. [@bates_parsimonious_2015]
--   Big data: speed!
--   Model diagnosis
--   Confidence intervals accounting for uncertainty in variances
-
-## The need for speed [@brooks_modeling_2017]
-
-<!-- https://tex.stackexchange.com/questions/250623/how-to-generate-a-4-up-table-of-images-with-pandoc -->
-
-
-![](pix/bigfit2.png)
-
-## more speed
-
-![](pix/bigfit1.png)
- 
-
-## Spatial and temporal correlations
-
--   Sometimes blocking takes care of non-independence ...
--   but sometimes there is temporal or spatial correlation *within* blocks
--    ... also phylogenetic ... [@ives_statistics_2006]
--   "G-side" vs. "R-side" effects
--   tricky to implement for GLMMs, but new possibilities on the horizon
-[@Rue+2009; @rousset_testing_2014];
-[https://github.com/stevencarlislewalker/lme4ord](lme4ord package)
-
-## Next steps
-
--   Complex random effects:   
-    regularization, model selection, penalized methods (lasso/fence)
--   Flexible correlation and variance structures
--   Flexible/nonparametric random effects distributions
--   hybrid & improved MCMC methods
--   *Reliable* assessment of out-of-sample performance
 
 ## resources
 
