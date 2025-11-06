@@ -25,7 +25,7 @@ checkpoint <- function() {
   saveRDS(mod_list, file = file.path(odir, fn_mod))
   saveRDS(buildmer_list, file = file.path(odir, fn_buildmer))
 }
-    
+
 fun_time <- function(FUN, ...) {
   t1 <- system.time(res <- FUN(...))
   attr(res, "time") <- t1
@@ -58,29 +58,29 @@ max_form <- sprintf("(%s)^4 + ((%s)^2 | biome) + ((%s)^2 | flor_realms) + ((%s)^
                     all_vars, all_vars, all_vars, all_vars)
 max_form2 <- reformulate(max_form, response = "mbirds_log")
 
-#####
+## devtools::load_all("~/Documents/R/pkgs/lme4")
+## debug(lme4::lmer)
+## debug(optimizeLmer)
+## debug(optwrap)
 
-m_moritz <- lmer(form2, data = dd)
+## debug(lme4::lmer)
+## debug(optimizeLmer)
+## debug(lme4:::optwrap)
+m_fullmax <- lmer(max_form2, data = dd,
+                  control = lmerControl(calc.derivs = FALSE),
+                  verbose = 20)
 
-m_glmmTMB <- glmmTMB(form2, data = dd, REML = TRUE)
+m_fullmax <- lmer(max_form2, data = dd,
+                  control = lmerControl(calc.derivs = FALSE,
+                                        optCtrl = list(maxeval = 10)))
 
-checkpoint()
+m_fullmax <- lmer(max_form2, data = dd,
+                  control = lmerControl(calc.derivs = TRUE,
+                                        optCtrl = list(maxeval = 10)))
 
-m_full <- lmer(form, data = dd)
+system.time(m_fullmax <- lmer(max_form2, data = dd, control = lmerControl(calc.derivs = FALSE)))
 
-checkpoint()
+system.time(m_fullmax <- lmer(max_form2, data = dd, control = lmerControl(calc.derivs = TRUE)))
 
-m_fullmax <- lmer(max_form2, data = dd, control = lmerControl(calc.derivs = FALSE))
+system.time(m_fullmax <- lmer(max_form2, data = dd))
 
-checkpoint()
-
-m_buildmer <- buildmer(form, data = dd)
-
-checkpoint()
-
-m_buildmer_fix <- buildmer(form, data = dd,
-                           buildmerControl =
-                             buildmerControl(
-                               include= ~(NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2))
-
-checkpoint()
