@@ -22,4 +22,6 @@ L2 <-getME(fit2, "Lambdat")
 image(S2 <- crossprod(L2))
 Zt2 <- getME(fit2, "Zt")
 Q2 <- t(Zt2) %*% S2 %*% Zt2
-image(Q2)
+
+n <- 10000
+image(Q2[1:n, 1:n], useRaster = TRUE, useAbs = FALSE)

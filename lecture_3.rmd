@@ -2,7 +2,7 @@
 title: "mixed models: challenges and frontiers"
 author: "Ben Bolker"
 bibliography: "glmm.bib"
-csl: apa.csl
+csl: reflist2.csl
 output:
   ioslides_presentation
 header-includes:

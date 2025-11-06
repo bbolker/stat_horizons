@@ -1,6 +1,9 @@
 * icon for 'dangerous bend/??' ?
 
-* improve/abbreviate bibliography (reflist2?)
+* Hodges old/new [@hodges_richly_2016]
+* replace coefplot2
+* improve/abbreviate bibliography (reflist2? multiple pages?)
+* Julia timing comparison ????
 
 * table of contents
 * QR code
@@ -11,9 +14,11 @@ Pictures of covariance matrices (V, ZVZ')
 
 ## lecture 1: to add
 
-* formulas (mention McElreath)
-* nested vs crossed
-* maximal model?
+* formula table spacing
+* cov image plots
+* 2D shrinkage plots (based on sleepstudy etc.?)
+* maximal model example?
+* references: https://stackoverflow.com/questions/38260799/references-page-truncated-in-rmarkdown-ioslides-presentation?rq=3
 
 ## lecture 2: workflow
 
@@ -49,6 +54,7 @@ Pictures of covariance matrices (V, ZVZ')
 ## lecture 3: frontiers
 
 * other platforms (INLA, brms/rstanarm/etc.)
+   * feature table?
 * integration methods (GLMM details)
 * speed: MixedModels.jl vs glmmTMB vs lme4 on big (crossed) problems?
 * conditional distributions, zero-inflation, censoring, etc etc
@@ -56,7 +62,7 @@ Pictures of covariance matrices (V, ZVZ')
 * structured covariances (splines etc etc etc)
 * inference details:
 * causal inference? (DAGs etc; Mundlak)
-* 
+
 ## stuff from mixed_details.md
 
    
