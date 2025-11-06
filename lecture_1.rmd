@@ -185,7 +185,7 @@ p <- with(m3,table(predation,ttt))
 ``` 
 
 
-```{r culcita2,warning=FALSE,message=FALSE}
+```{r culcita2,warning=FALSE,message=FALSE,eval=FALSE}
 load("data/culcita.RData")
 library(lme4)
 cmod1 <- glmer(predation~ttt+(1|block),data=culcita_dat,
@@ -685,7 +685,7 @@ best methods needed for large variance, small clusters
 
 ## Estimation: *Culcita* [@mckeon_multiple_2012]
 
-```{r stierfig2,warning=FALSE,fig.width=8,fig.height=8}
+```{r stierfig2,warning=FALSE,fig.width=8,fig.height=8, eval=FALSE}
 library(coefplot2)
 cvec <- c("purple","magenta","blue","black","darkgreen")
 mnames <- c("GLM (fixed)","GLM (pooled)","PQL","Laplace","AGQ")
