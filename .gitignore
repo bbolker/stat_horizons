@@ -3,3 +3,5 @@
 \#*
 *_cache/
 *_files/
+*.Rout
+.Rhistory

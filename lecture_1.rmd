@@ -3,7 +3,7 @@ title: "mixed models: introduction"
 author: "Ben Bolker"
 date: "18 November 2025"
 bibliography: "glmm.bib"
-csl: apa.csl
+csl: reflist2.csl
 nocite: |
   @banta_comprehensive_2010
 output:
@@ -36,6 +36,9 @@ h3 {
 }
 .title-slide {
    background-color: #55bbff;
+}
+.smalltab {
+    font-size: 10px;
 }
 </style>
 <!--    content: url(https://i.creativecommons.org/l/by-sa/4.0/88x31.png)
@@ -440,17 +443,17 @@ the grouping variable;
 ## Reasons for random effects (practical)
 
 - want to combine information across groups
-- have variation in information per level (number of samples or noisiness);
-- have a categorical predictor that is a nuisance variable (i.e., it is not of direct interest, but should be controlled for).
-- have more than 5-6 groups, or regularizing/using priors (otherwise, use fixed)
+- have variation in information per level (number of samples or noise level)
+- have a categorical predictor that is a nuisance variable (i.e., not of direct interest, but needs to be controlled for)
+- have more than 5-6 groups that could be considered exchangeable
 
 See also @Crawley2002; @gelman_analysis_2005
 
 ## Avoiding mixed models
 
-* average: for *nested* LMMs (when uninterested in within-group variation) [@murtaugh_simplicity_2007] 
-* use fixed effects (or two-stage models) instead of random effects when
-     * many samples per block (shrinkage unimportant)
+* average: for *nested* (balanced) LMMs [@murtaugh_simplicity_2007] 
+* use fixed effects (or *two-stage models*) instead of random effects when there are
+     * many observations per block (shrinkage unimportant)
      * few blocks (little advantage; bad variance estimates)
 
 Model setup
@@ -458,12 +461,13 @@ Model setup
 
 ## Formulas
 
-- random effects specified with `|` as `(a|g1) + (b|g2) + ...`
+- random effects specified with `|` ("pipe"/"bar") as `(a|g1) + (b|g2) + ...`
 - right-hand side is the *grouping variable* (always categorical, usually a factor)
-- left-hand side is the *varying term* (most often 1)s
+- left-hand side is the *varying term* (most often 1)
 - terms separated by `+` are independent
+- formulas: empower but conceal details [@mcelreath_statistical_2015]
 
-## Formula definitions
+## Formula definitions {.smalltab}
 
 ```{r ftab,echo=FALSE,results="asis"}
 ftab <- matrix(c("β_0 + β_{1}X_{i} + e_{si}",

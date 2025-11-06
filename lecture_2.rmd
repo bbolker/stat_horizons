@@ -1,6 +1,7 @@
 ---
 title: live coding (lecture 2/3)
 bibliography: glmm.bib
+csl: apa.csl
 ## params:
 ##  EVAL: !r identical(Sys.getenv("FIT_MODELS"), "true")
 ---
@@ -8,6 +9,7 @@ bibliography: glmm.bib
 ```{r load_pkgs}
 library(ggplot2); theme_set(theme_bw())
 library(lme4)
+library(lmerTest)
 zmargin <- theme(panel.spacing=unit(0,"lines"))
 library(ggplot2)
 library(tidyverse)
@@ -172,10 +174,17 @@ form2 <- mbirds_log ~ (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
 m_moritz <- lmer(form2, data = dd)
 ```
 
+For comparison, let's try this in `glmmTMB` as well:
+
+```{r}
+m_glmmTMB <- glmmTMB(form2, data = dd, REML = TRUE)
+```
+
 ```{r mod_list}
 mod_list <- tibble::lst(m_moritz, m_full, m_fullmax,
                         m_buildmer_mod = m_buildmer@model,
-                        m_buildmer_fix_mod = m_buildmer_fix@model)
+                        m_buildmer_fix_mod = m_buildmer_fix@model,
+                        m_glmmTMB)
 ```
 
 ```{r save_mod_list}
@@ -184,12 +193,6 @@ if (!dir.exists(odir)) dir.create(odir)
 saveRDS(mod_list, file = file.path(odir, "mod_list.rds"))
 saveRDS(tibble::lst(m_buildmer, m_buildmer_fix),
         file = file.path(odir, "buildmer.rds"))
-```
-
-```{r echo = FALSE, eval = FALSE}
-mod_list <- tibble::lst(m_moritz, m_full, m_fullmax,
-                        m_buildmer_mod = `m_buildmer@model`,
-                        m_buildmer_fix_mod = `m_buildmer_fix@model`)
 ```
 
 ## diagnostics

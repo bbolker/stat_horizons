@@ -9,3 +9,4 @@ timecomp.rds: timecomp.R
 pix/nbr_graph.png: ctv_network.R
 	R CMD BATCH --vanilla ctv_network.R
 
+lecture2_clean: lecture2.rmd ./glmm.bib
