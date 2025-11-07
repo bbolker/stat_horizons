@@ -9,6 +9,7 @@ csl: apa.csl
 ```{r load_pkgs}
 library(ggplot2); theme_set(theme_bw())
 library(lme4)
+library(glmmTMB)
 library(lmerTest)
 zmargin <- theme(panel.spacing=unit(0,"lines"))
 library(ggplot2)
@@ -176,7 +177,7 @@ m_moritz <- lmer(form2, data = dd)
 
 For comparison, let's try this in `glmmTMB` as well:
 
-```{r}
+```{r glmmTMB, eval = FALSE}
 m_glmmTMB <- glmmTMB(form2, data = dd, REML = TRUE)
 ```
 

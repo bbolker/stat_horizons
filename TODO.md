@@ -1,5 +1,6 @@
 * icon for 'dangerous bend/??' ?
 
+* add Arabidopsis analysis?
 * Hodges old/new [@hodges_richly_2016]
 * replace coefplot2
 * improve/abbreviate bibliography (reflist2? multiple pages?)
@@ -15,9 +16,8 @@ Pictures of covariance matrices (V, ZVZ')
 ## lecture 1: to add
 
 * formula table spacing
-* cov image plots
+* cov image plots: remove color bar, fuss with size
 * 2D shrinkage plots (based on sleepstudy etc.?)
-* maximal model example?
 * references: https://stackoverflow.com/questions/38260799/references-page-truncated-in-rmarkdown-ioslides-presentation?rq=3
 
 ## lecture 2: workflow

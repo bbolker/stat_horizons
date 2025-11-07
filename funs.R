@@ -2,8 +2,10 @@
 library(cowplot)
 simfun <- function(ng, nvar, nrep, form, pars) {
   dd <- expand.grid(r = seq(nrep),
-                    v = factor(seq(nvar)),
-                    g = factor(seq(ng))
+                    v = factor(seq(nvar[1])),
+                    v2 = factor(seq(nvar[2])),
+                    g = factor(seq(ng[1])),
+                    g2 = factor(seq(ng[2]))
                     )
   dd$y <- simulate(form[-2],
                    newdata = dd,
@@ -12,8 +14,9 @@ simfun <- function(ng, nvar, nrep, form, pars) {
   lmer(form, data = dd)
 }
 
-ifun <- function(x, ...) {
-  image(x, useAbs=FALSE, useRaster = TRUE, sub = "", xlab = "",
+ifun <- function(x, sub = "", ...) {
+  image(x, useAbs=FALSE, useRaster = TRUE, xlab = "",
+        sub = sub,
         ylab = "")
 }
 
@@ -24,14 +27,5 @@ plotfun <- function(fit) {
   Z <- getME(fit, "Z")
   S2 <- Z %*% S1 %*% t(Z)
   S3 <- S2 + Matrix::Diagonal(nrow(S2), sigma(fit)^2)
-  cowplot::plot_grid(ifun(S1), ifun(S3))
+  cowplot::plot_grid(ifun(S1, sub = expression("random effects" ~~ Sigma)), ifun(S3, sub = expression("observation" ~~ Sigma)))
 }        
-
-fit <- simfun(10, 1, 5,
-       y ~ 1 + (1|g),
-       list(beta = 1, theta = 1, sigma = 1))
-
-plotfun(fit)
-  
-  
-
