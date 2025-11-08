@@ -83,12 +83,133 @@ scale_fill_discrete <- function(...) {
 }
 ```
 
-Troubleshooting
-======
+# Inference details
+
+## Confidence intervals/$p$-values
+
+* as with GLMM fitting, methods range from "easy, less accurate" to "computationally expensive, more accurate"
+   * Wald approximations
+   * Profile likelihood
+   * (Parametric) bootstrap
+* easy methods improve as number of observations *and* number of clusters grows
+* easy methods work better for fixed effects than for RE variances
+
+## Wald approximation
+
+most important:
+
+- small sample sizes
+- values near boundaries
+     - changing scales may help
+
+more important for variance parameters than fixed-effect parameters
+
+## Finite-size corrections
+
+e.g. Normal vs. $t$
+
+## Posterior predictive simulation
+
+- if there is some value you're interested in that you can compute from your data (e.g. number of zero observations, or total NPP), you can `simulate()` it fro the fitted model:
+
+```{r pps}
+
+```
+
+## Inference: fixed effects, Wald
+
+- parameter estimates: `summary()`
+- termwise tests: `car::Anova`, `afex::anova`
+- contrasts/effects/post-hoc tests: `emmeans`, `effects` packages
+
+```{r anova,results="hide",message=FALSE}
+m1 <- lmer(Reaction ~ Days + (Days|Subject), sleepstudy)
+car::Anova(m1)
+```
+
+## Degrees of freedom
+
+- level-counting: `R/calcDenDF.R`
+- `lmerTest`/`afex`; Satterthwaite, Kenward-Roger
+
+```{r lmerTest, message=FALSE}
+library(lmerTest)
+summary(as_lmerModLmerTest(m1))
+summary(as_lmerModLmerTest(m1),ddf="Kenward-Roger")
+```
+
+Q: Why not use `lmerTest` all the time?  
+A: it can make it a little harder to diagnose fitting problems
+
+## Inference: fixed effects, likelihood ratio test
+
+- individual parameters: `profile()`, `confint()`
+- fit pairwise models and use `anova()` to compare
+- `drop1`, `afex::anova()`
+
+```{r ci, cache=TRUE}
+confint(m1)
+```
+
+What took so long?
+
+```{r prof,cache=TRUE,echo=FALSE,fig.width=10}
+pp <- as.data.frame(profile(m1,signames=FALSE))
+ggplot(pp,aes(.focal,.zeta^2))+geom_point()+geom_line()+
+    facet_wrap(~.par,scale="free_x")+
+    labs(x="",y="negative log-likelihood")
+```
+
+## Inference: parametric bootstrap
+
+Very slow!
+
+- `pbkrtest`
+- `confint(.,method="boot")`
+
+## Inference: random effects
+
+- Wald is probably very bad
+- profile, `anova()`
+- parametric bootstrap
+- boundary problems
+
+## Inference: CIs on predictions etc.
+
+(possible now. distinction between `lme4` (conditions on theta-hat) vs `glmmTMB` (full))
+
+# Troubleshooting
+
+## What is a "singular fit"?
+
+* non-positive-definite covariance matrix
+* zero variance (simple case)
+* ±1 correlation (next simplest case)
+* hard to recognize in the general case! 
+* some linear combination(s) of random-effect variables have zero variance
+
+```{r eval = FALSE}
+library(rgl)
+open3d()
+ellipse3d(scale = c(2, 3, 0))
+cormat <- diag(3)
+cormat[lower.tri(cormat)] <- c(0.6,0.2, 0.3)
+cormat[upper.tri(cormat)] <- t(cormat)[upper.tri(cormat)]
+v <- outer(sd, sd) * cormat
+plot3d(ellipse3d(v), xlim = c(-3, 3),
+       ylim = c(-3, 3), zlim = c(-3, 3), col = "blue")
+lines3d(ee[,1], ee[,2], 0)
+points3d(ee[,1], ee[,2], 0)
+indices <- seq(nrow(ee))
+wire3d( mesh3d(vertices = ee, quads = indices) )
+```
 
 ## Why are fits singular?
 
-Essentially, because the *observed* among-group variation is less than the *expected* among-group variation (= $\sigma^2_{\mbox{among}} + \sigma^2_{\mbox{within}}/n$). More generally, because *some* dimension of the variance-covariance matrix has zero extent ...
+Essentially, because the *observed* among-group variation is less than
+the *expected* among-group variation (= $\sigma^2_{\mbox{among}} +
+\sigma^2_{\mbox{within}}/n$). More generally, because *some* dimension
+of the variance-covariance matrix has zero extent ...
 
 ```{r singsims,echo=FALSE,fig.width=7,fig.height=4,cache=TRUE,message=FALSE,warning=FALSE}
 simfun <- function(n1=5,n2=5,sd1=1,sd2=1) {
@@ -115,6 +236,21 @@ plotfun(sd_List[[1]],main="sd=1,res.sd=1,5 groups")
 plotfun(sd_List[[2]],main="sd=1,res.sd=1,3 groups")
 invisible(dev.off())
 ```
+
+## What to do about singular fits?
+
+* ignore them, or drop terms
+* simplify the model
+* regularize/add priors
+* full Bayesian treatment
+
+## Ignoring/dropping terms
+
+* Zero variances/singular fits *are not a mistake*; they're the best fit to the data
+* Dropping a (full) singular term gives the same results/predictions/etc.
+    * It does narrow confidence intervals (if using profile CIs)
+
+
 
 ## Simplified versions of models
 
@@ -208,97 +344,14 @@ PCA of RE variance-covariance matrix:
 rePCA(m1)
 ```
 
-# Inference details
 
-## Likelihood
+# Structured covariances
 
-- probability of data given model
-- for mixed models, includes the integral over the random effects
+##
 
-## Profiles and intervals
-
-## Wald approximation
-
-most important:
-
-- small sample sizes
-- values near boundaries
-     - changing scales may help
-
-more important for variance parameters than fixed-effect parameters
-
-## Finite-size corrections
-
-e.g. Normal vs. $t$
-
-## Posterior predictive simulation
-
-- if there is some value you're interested in that you can compute from your data (e.g. number of zero observations, or total NPP), you can `simulate()` it fro the fitted model:
-
-```{r pps}
-
+```{r}
+knitr::include_graphics("pix/ab1mvs.jpg")
 ```
-
-## Inference: fixed effects, Wald
-
-- parameter estimates: `summary()`
-- termwise tests: `car::Anova`, `afex::anova`
-- contrasts/effects/post-hoc tests: `emmeans`, `effects` packages
-
-```{r anova,results="hide",message=FALSE}
-car::Anova(m1)
-```
-
-## Degrees of freedom
-
-- level-counting: `R/calcDenDF.R`
-- `lmerTest`/`afex`; Satterthwaite, Kenward-Roger
-
-```{r lmerTest, message=FALSE}
-library(lmerTest)
-summary(as_lmerModLmerTest(m1))
-summary(as_lmerModLmerTest(m1),ddf="Kenward-Roger")
-```
-
-Q: Why not use `lmerTest` all the time?  
-A: it can make it a little harder to diagnose fitting problems
-
-## Inference: fixed effects, likelihood ratio test
-
-- individual parameters: `profile()`, `confint()`
-- fit pairwise models and use `anova()` to compare
-- `drop1`, `afex::anova()`
-
-```{r ci, cache=TRUE}
-confint(m1)
-```
-
-What took so long?
-
-```{r prof,cache=TRUE,echo=FALSE,fig.width=10}
-pp <- as.data.frame(profile(m1,signames=FALSE))
-ggplot(pp,aes(.focal,.zeta^2))+geom_point()+geom_line()+
-    facet_wrap(~.par,scale="free_x")+
-    labs(x="",y="negative log-likelihood")
-```
-
-## Inference: parametric bootstrap
-
-Very slow!
-
-- `pbkrtest`
-- `confint(.,method="boot")`
-
-## Inference: random effects
-
-- Wald is probably very bad
-- profile, `anova()`
-- parametric bootstrap
-- boundary problems
-
-## Inference: CIs on predictions etc.
-
-(possible now. distinction between `lme4` (conditions on theta-hat) vs `glmmTMB` (full))
 
 # Challenges & open questions
 

@@ -2,7 +2,6 @@
 
 * add Arabidopsis analysis?
 * Hodges old/new [@hodges_richly_2016]
-* replace coefplot2
 * improve/abbreviate bibliography (reflist2? multiple pages?)
 * Julia timing comparison ????
 
