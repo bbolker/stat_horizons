@@ -84,3 +84,23 @@ m_buildmer_fix <- buildmer(form, data = dd,
                                include= ~(NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2))
 
 checkpoint()
+
+form_diag <- as.formula(gsub("|", "||", deparse1(form), fixed = TRUE))
+m_kliegl1 <- lmer(form_diag, data = dd)
+
+form_kliegl2 <- mbirds_log ~
+  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  (1 + NPP_log_sc + Feat_cv_sc || biome) +
+  (1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc || flor_realms) +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc || biome_FR)
+m_kliegl2 <- lmer(form_kliegl2, data = dd)
+
+form_kliegl3 <- as.formula(gsub("||", "|", deparse1(form_kliegl2), fixed = TRUE))
+m_kliegl3 <- lmer(form_kliegl3, data = dd)
+
+form_kliegl4 <- mbirds_log ~
+  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  rr(1 + NPP_log_sc + Feat_cv_sc | biome, d=2) +
+  rr(1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc | flor_realms, d=3) +
+  rr(1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | biome_FR, d=4)
+m_kliegl4 <- glmmTMB(form_kliegl4, dd, REML=TRUE)

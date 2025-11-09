@@ -4,7 +4,11 @@ author: "Ben Bolker"
 bibliography: "glmm.bib"
 csl: reflist2.csl
 output:
-  ioslides_presentation
+    ioslides_presentation:
+      css: toc-style.css
+      includes:
+        in_header: TOC_generator.js.wrapper
+    self_contained: true
 header-includes:
 - \usepackage{amsmath}
 - \usepackage{amssymbol}
@@ -92,7 +96,7 @@ scale_fill_discrete <- function(...) {
 
 <div id="toc"></div>
 
-# Inference details
+# Inference details {.section}
 
 ## Confidence intervals/$p$-values
 
@@ -205,7 +209,7 @@ ggplot(pp)+
 
 ```
 
-# Troubleshooting
+# Troubleshooting {.section}
 
 ## What is a "singular fit"? {.columns-2}
 
@@ -408,7 +412,7 @@ ss$llik-min(ss$llik)
 - brute-force: non-singular, best AIC [@moritzrole2023a]
 - inspect principal components of covariance matrix? (`rePCA`)
 
-# Structured covariances
+# Structured covariances {.section}
 
 ## Spatial/temporal
 
@@ -431,7 +435,7 @@ ss$llik-min(ss$llik)
 knitr::include_graphics("pix/ab1mvs.jpg")
 ```
 
-# Big data?
+# Big data? {.section}
 
 ## The need for speed 
 
@@ -480,13 +484,13 @@ ggplot(benchdat, aes(y = method)) +
 knitr::include_graphics("pix/gao_owen.png")
 ```
 
-# Challenges & open questions
+# Challenges & open questions {.section}
 
 ## On beyond `lme4`
 
--  `glmmTMB`: zero-inflated and other distributions
--  `brms`,`rstanarm`: interfaces to Stan
--  `INLA`: spatial and temporal correlations
+- `glmmTMB`: zero-inflated and other distributions
+- `MCMCglmm`, `brms`,`rstanarm`: Bayesian
+- `INLA`: spatial and temporal correlations
 - [rethinking package](https://github.com/rmcelreath/rethinking)
 
 ## Toolboxes
@@ -499,11 +503,11 @@ knitr::include_graphics("pix/gao_owen.png")
 
 ## On beyond R
 
--   Julia: `MixedModels.jl` package
--   SAS: PROC MIXED, NLMIXED
--   AS-REML
--   Stata (GLLAMM, xtmelogit)
--   HLM, MLWiN
+- Julia: `MixedModels.jl` package
+- SAS: PROC MIXED, NLMIXED
+- AS-Reml
+- Stata (GLLAMM, xtmelogit)
+- HLM, MLWiN
 
 ![image](pix/300px-On_Beyond_Zebra.jpg){width="3cm"}
 

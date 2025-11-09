@@ -7,7 +7,11 @@ csl: reflist2.csl
 nocite: |
   @banta_comprehensive_2010
 output:
-  ioslides_presentation
+  ioslides_presentation:
+    css: toc-style.css
+    includes:
+      in_header: TOC_generator.js.wrapper
+    self_contained: true
 header-includes:
 - \usepackage{amsmath}
 - \usepackage{amssymbol}
@@ -89,7 +93,13 @@ scale_fill_discrete <- function(...) {
 }
 ```
 
-## Mixed models (overview)
+## Table of contents
+
+<div id="toc"></div>
+
+# Overview {.section}
+
+## Mixed models 
 
 * *tabular* data (row = observation, column = variable)
 * *regression* models
@@ -124,7 +134,7 @@ dd$y <- simulate( ~ 1 + trt + (1|g),
                                   sigma = 0.2))[[1]]
 
 ## subsample to get lack of balance
-samp <- sample(nrow(dd), size = round(0.7*nrow(dd)), replace = FALSE)
+samp <- sample(nrow(dd), size = round(0.5*nrow(dd)), replace = FALSE)
 dds <- dd[samp,]
 mdat <- data.frame(x0 = c(0.5, 4.5), x1 = c(4.5, 8.5), y = c(1, 1.5),
                    trt = factor(c("control", "treatment")))
@@ -160,6 +170,8 @@ ggplot(dds, aes(g, y)) +
 ```{r out.width='100%'}
 knitr::include_graphics("pix/models-glmm.png")
 ```
+
+# Examples {.section}
 
 ## Experimental: bloodworm cell survival
 
@@ -275,6 +287,8 @@ pp <- plotfun(j.red2,m.acr.nofr,drop.cols=c(4,8))
 pp + labs(subtitle = "J.-S. White, unpublished")
 ```
 
+# Definitions and descriptions {.section}
+
 ## Simple mixed models<br>(scalar, intercept-only)
 
 $$
@@ -369,8 +383,7 @@ See also @Crawley2002; @gelman_analysis_2005
      * many observations per block (shrinkage unimportant)
      * few blocks (little advantage; bad variance estimates)
 
-Model setup
-============
+# Model setup {.section}
 
 ## Formulas
 
@@ -449,7 +462,7 @@ plotfun(fit)
 
 ## example covariance matrices
 
-* 10 groups, 5 obs/group, 3 effects/group
+* 10 groups, 5 obs/group, effects/group
 
 ```{r plotcov2}
 fit2 <- simfun(c(10, 1), c(2,1), 3,
@@ -470,6 +483,8 @@ plotfun(fit3)
 ```
 
 ##  example covariance matrices
+
+Real example (fire/diversity; blocks are geographic regions)
 
 ```{r ecoreg_cov, message=FALSE}
 mod_list <- readRDS("outputs/mod_list.rds")
@@ -504,7 +519,6 @@ $$
 - If effects don't vary within groups, then we *can't* estimate among-group variation in the effect
      - convenient
      - maybe less powerful (among-group variation is lumped into residual variation)
-- e.g. 
 
 ## The maximal model is often too complex
 
@@ -513,11 +527,10 @@ $$
     - Treating covariates as numeric, allow all interactions: 16 effects → $p=136$
     - Categorical predictors, no interactions: 12 effects → $p=78$
     - Numeric predictors, no interactions: 4 effects → $p=10$
-- **but** ignoring variation of within-cluster effects can also be dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022]
+- ignoring within-cluster effects is also dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022]
 
 
-Estimation
-==========
+# Estimation {.section}
 
 ## Maximum likelihood estimation
 
@@ -526,23 +539,35 @@ Estimation
     consistency of random effect with RE distribution)
 	-   Goodness-of-fit *integrates* over conditional modes
 
-## ...
+## Shrinkage
 
-```{r plotex,message=FALSE}
-set.seed(101)
-dd <- data.frame(f=gl(5,5))
-dd$y <- simulate(~1+(1|f),newdata=dd,
-                 family=gaussian,seed=101,
-                 newparams=list(theta=1,beta=0,sigma=1))[[1]]
-ggplot(dd,aes(x=f,y=y))+geom_point()+
-    stat_summary(fun=mean,geom="point",size=3,colour="blue",
-                 pch=3)+
-     geom_point(data=subset(dd,y<(-2)),colour="red",size=2)+
-         theme_update(panel.grid.major=element_blank(),
-                      panel.grid.minor=element_blank())
+```{r anova-shrink, message = FALSE, warning=FALSE}
+anova_fit <- lmer(y ~ 1 + (1|g), data = dds)
+pframe <- unique(subset(dds, select = c("g", "trt")))
+pframe$y <- predict(anova_fit, newdata = pframe)
+sframe <- subset(pframe, g=="4")
+## duplicate
+sframe <- sframe[c(1,1),]
+sframe$y[2] <- mean(subset(dds, g=="4")$y)
+sframe$lab <- c("conditional mode", "group mean")
+ggplot(dds, aes(g, y, colour = trt)) +
+  ## geom_jitter(aes(colour = trt, shape = trt),
+  ##              width = 0.2, height = 0) +
+  geom_beeswarm(aes(shape = trt), alpha = 0.4) +
+  stat_summary(fun = mean, size = 0.5, pch = 15) +
+  geom_point(data = pframe, pch = 16, size = 2) +
+  labs(x = "group", y = "response",
+       title = expression(list(beta == (list(1,0.5)),
+                               sigma[alpha]==0.4,
+                               sigma[r] == 0.2))) +
+  geom_segment(aes(x = x0, xend = x1, y = y, yend = y,
+                   colour = trt), data = mdat, lty = 2,
+               alpha = 0.8) +
+  geom_label(aes(label = lab), data = sframe, hjust = -0.1) +
+  theme(legend.position = "none")
 ```
 
-## Shrinkage: *Arabidopsis* conditional modes
+## *Arabidopsis* conditional modes
 
 ```{r arabshrink,fig.height=6,fig.width=8}
 z<- subset(dat.tf,amd=="clipped" & nutrient=="1")
@@ -561,12 +586,14 @@ sizefun <- function(x,smin=0.5,smax=3,pow=2) {
 nv <- dnorm(nseq,mean=gm,sd=gsd)
 ##
 op <- par(las=1,cex=1.5,bty="l")
-plot(exp(m1s),xlab="Genotype",ylab="Mean fruit set",
-     axes=FALSE,xlim=c(-0.5,25),log="y",yaxs="i",xpd=NA,
-     pch=16,cex=0.5)
+plot(exp(m1s), xlab="Genotype", ylab="Mean fruit set",
+     axes=FALSE,xlim=c(-0.5,25), log="y", yaxs="i", xpd=NA,
+     pch=16, cex=0.5,
+     ylim = c(exp(-5), 50))
 axis(side=1)
-axis(side=2,at=c(exp(-5),0.1,1,10,20),
-     labels=c(0,0.1,1,10,20),cex=0.8)
+tkvec <- c(exp(-5),0.1,0.5, 1,5,10,50)
+tklabs <- tkvec; tklabs[1] <- 0
+axis(side=2, at = tkvec, labels = tklabs, cex = 0.8)
 ##     ylim=c(-3,5))
 polygon(c(rep(0,50),nv*10),exp(c(rev(nseq),nseq)),col="gray",xpd=NA)
 n <- tt[order(coef(m1))]
@@ -653,7 +680,7 @@ tt |> filter(is.na(effect) | effect == "fixed") |>
   geom_vline(xintercept = 0, lty = 2)
 ```
 
-# Inference
+# Inference {.section}
 
 ## Wald tests
 
@@ -672,7 +699,7 @@ approximation for GLM(M)s
     -   Kenward-Roger correction? [@stroup_rethinking_2014]
 -   Profile confidence intervals: expensive/fragile
 
-## finite-size p-values??
+## Finite-size corrections
 
 - hope that min grps > 42
 - guess denominator DF from classic design ([R code](R/calcDenDF.R))

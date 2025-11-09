@@ -2,12 +2,17 @@
 title: live coding (lecture 2/3)
 bibliography: glmm.bib
 csl: apa.csl
+output:
+  html_document:
+    self-contained: true
+    toc: true
 ## params:
 ##  EVAL: !r identical(Sys.getenv("FIT_MODELS"), "true")
 ---
 
-```{r load_pkgs}
+```{r load_pkgs, message = FALSE}
 library(ggplot2); theme_set(theme_bw())
+## requires ggplot2 version >= 4.0.0
 library(lme4)
 library(glmmTMB)
 library(lmerTest)
@@ -19,11 +24,15 @@ library(buildmer)
 library(broom.mixed)
 library(bbmle)
 library(DHARMa)
-library(cAIC4)
-
-library(marginaleffects)
-library(emmeans)
 library(effects)
+library(marginaleffects)
+```
+
+You may want to get previously fitted models (this uses the much-maligned `attach()` function)
+
+```{r get_data, eval = FALSE}
+mod_list <- readRDS("outputs/mod_list.rds")
+attach(mod_list)
 ```
 
 ```{r load_data, include = FALSE}
@@ -37,6 +46,8 @@ if (file.exists(fn_mod)) {
   invisible(list2env(buildmer_list, environment())) ## unpack
 }
 ```
+
+
 ## introduction to the example
 
 From @moritzrole2023a: `r nrow(dd)` global observations
@@ -69,7 +80,7 @@ Draw figures: `ggplot` is particular good for its flexibility &mdash;
 
 Competitors with similar capabilities include `tinyplot` (R): `plotnine`, `seaborn` (Python); `gadfly`, `AlgebraOfGraphic` (Julia), but `ggplot` is mature (e.g. see [ggplot extensions gallery](https://exts.ggplot2.tidyverse.org/gallery/))
 
-```{r ggplot0}
+```{r ggplot0, warning = FALSE}
 gg0 <- ggplot(dd, aes(NPP_log_sc, mbirds_log, colour = biome, shape = flor_realms)) +
   geom_point() +
   geom_smooth(method = "lm", aes(group = biome_FR), alpha = 0.1)
@@ -91,9 +102,7 @@ ggplotly(gg2)
 
 (`ggplotly` might not be supported long-term (??), try out `ggiraph` ?)
 
-### to be continued ... ??
-
-## model fitting
+# model fitting
 
 ### full model
 
@@ -181,8 +190,54 @@ For comparison, let's try this in `glmmTMB` as well:
 m_glmmTMB <- glmmTMB(form2, data = dd, REML = TRUE)
 ```
 
+## Kliegl method
+
+Check the individual `VarCorr` terms:
+
+```{r sing_terms}
+sapply(VarCorr(m_full), det)
+```
+
+All three terms are singular (determinant $\ll 1$), so let's replace them all with diagonal versions:
+
+```{r kliegl1}
+form_diag <- as.formula(gsub("|", "||", deparse1(form), fixed = TRUE))
+m_kliegl1 <- lmer(form_diag, data = dd)
+## use internal machinery for brevity
+lme4:::.prt.VC(VarCorr(m_kliegl1), digits = 3)
+```
+This suggests we should drop `NPP_cv_sc` from the `flor_realms` term; `NPP_cv_sc` and `Feat_log_sc` from `biome`; and keep all terms for `biome_FR`
+
+```{r kliegl2}
+form_kliegl2 <- mbirds_log ~
+  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  (1 + NPP_log_sc + Feat_cv_sc || biome) +
+  (1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc || flor_realms) +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc || biome_FR)
+m_kliegl2 <- lmer(form_kliegl2, data = dd)
+isSingular(m_kliegl2)
+```
+
+Can we get away with full covariances once we drop these terms?
+
+```{r kliegl3}
+form_kliegl3 <- as.formula(gsub("||", "|", deparse1(form_kliegl2), fixed = TRUE))
+m_kliegl3 <- lmer(form_kliegl3, data = dd)
+sapply(VarCorr(m_kliegl3), det)
+```
+
+```{r kliegl4, eval = FALSE}
+form_kliegl4 <- mbirds_log ~
+  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  rr(1 + NPP_log_sc + Feat_cv_sc | biome, d=2) +
+  rr(1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc | flor_realms, d=3) +
+  rr(1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | biome_FR, d=4)
+m_kliegl4 <- glmmTMB(form_kliegl4, dd, REML=TRUE)
+```
+
 ```{r mod_list}
 mod_list <- tibble::lst(m_moritz, m_full, m_fullmax,
+                        m_kliegl4,
                         m_buildmer_mod = m_buildmer@model,
                         m_buildmer_fix_mod = m_buildmer_fix@model,
                         m_glmmTMB)
@@ -196,53 +251,85 @@ saveRDS(tibble::lst(m_buildmer, m_buildmer_fix),
         file = file.path(odir, "buildmer.rds"))
 ```
 
-## diagnostics
+# diagnostics
 
-```{r diag1}
+## check_model
+
+```{r diag1, fig.height=10, fig.width=7}
 performance::check_model(m_buildmer_fix_mod)
+```
+
+
+## DHARMa
+
+
+```{r dharma1, fig.height = 6, fig.width = 10}
 pp1 <- DHARMa::simulateResiduals(m_buildmer_fix_mod)
 pp2 <- DHARMa::simulateResiduals(m_buildmer_fix_mod, use.u = TRUE)
 plot(pp2)
 ```
 
-```{r diag2}
-plot(simulateResiduals(m_buildmer_fix_mod))
+## check_model (buildmer model)
+
+```{r cm2, fig.height=10, fig.width=7}
 performance::check_model(m_buildmer_fix_mod)
 ```
 
-## model comparison
+## DHARMa (buildmer model)
 
-```{r AIC}
-AICtab(mod_list)
+```{r diag2, fig.height = 6, fig.width = 10}
+plot(simulateResiduals(m_buildmer_fix_mod))
 ```
 
-```{r cAIC, eval = FALSE}
+# model comparison
+
+```{r AIC}
+bbmle::AICtab(mod_list)
+```
+
+```{r cAIC, eval = FALSE, echo = FALSE}
 ## skip ????
 cAIC_list <- lapply(mod_list, cAIC)
 cAIC_vec <- sapply(cAIC_list, \(x) x$caic)
 cAIC_vec - min(cAIC_vec)
+## run cAIC on full set of fitted models??
+## 'full' and 'crazy' are automatically refitted with a subset ... rabbit hole ...
 ```
-
-run cAIC on full set of fitted models??
-'full' and 'crazy' are automatically refitted with a subset ... rabbit hole ...
 
 ## compare fits (coefficient plots etc.)
 
-Downstream processing (contrasts, marginal effects, plotting, etc.)
+Downstream processing (contrasts, marginal effects, plotting, etc.): `effects`, `broom.mixed`, `sjPlot`, `marginaleffects`, `ggeffects`, `emmeans` (see [Mixed Models Task View](https://cran.r-project.org/web/views/MixedModels.html))
 
-`effects`, `broom.mixed`, `sjPlot`, `marginaleffects`, `ggeffects`, `emmeans`
-
-```{r coefplot}
+```{r coefplot, fig.width = 12}
 tt <-  mod_list |>
   purrr::map_dfr(tidy, effects = "fixed", .id = "model", conf.int = TRUE) |>
   filter(term != "(Intercept)")
 
-ggplot(tt, aes(estimate, term, colour = model)) +
+gg_coef <- ggplot(tt, aes(estimate, term, colour = model)) +
   geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
-                  position = position_dodge(width = 0.5)) +
-  geom_vline(xintercept = 0, lty = 2)
+                  position = position_dodge(width = 0.75)) +
+  geom_vline(xintercept = 0, lty = 2) +
+  labs(y = "")
+print(gg_coef)
 ```
 
-```{r effects}
-plot(allEffects(m_buildmer_fix_mod))
+Drop "fullmax" model:
+
+```{r coefplot2, fig.width = 10}
+mod_list2 <- mod_list[names(mod_list) != "m_fullmax"]
+tt2 <-  mod_list2 |>
+  purrr::map_dfr(tidy, effects = "fixed", .id = "model", conf.int = TRUE) |>
+  filter(term != "(Intercept)")
+
+print(gg_coef + tt2)
 ```
+
+Effects plots, with *partial residuals* (also see the `remef` package, [on GitHub](https://github.com/hohenstein/remef)).
+
+```{r effects, fig.width = 10, fig.height = 8}
+plot(allEffects(m_buildmer_fix_mod, partial.residuals = TRUE))
+```
+
+Would like to try `marginaleffects` but struggling ...
+
+## References

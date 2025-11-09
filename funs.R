@@ -17,7 +17,8 @@ simfun <- function(ng, nvar, nrep, form, pars) {
 ifun <- function(x, sub = "", ...) {
   image(x, useAbs=FALSE, useRaster = TRUE, xlab = "",
         sub = sub,
-        ylab = "")
+        ylab = "",
+        colorkey = FALSE)
 }
 
 ## add group names?
@@ -29,3 +30,13 @@ plotfun <- function(fit) {
   S3 <- S2 + Matrix::Diagonal(nrow(S2), sigma(fit)^2)
   cowplot::plot_grid(ifun(S1, sub = expression("random effects" ~~ Sigma)), ifun(S3, sub = expression("observation" ~~ Sigma)))
 }        
+
+## experiments
+if (FALSE) {
+  library(lme4)
+  fit <- simfun(c(10,1), c(1,1),  5,
+                y ~ 1 + (1|g),
+                list(beta = 1, theta = 1, sigma = 1))
+  plotfun(fit)
+}
+

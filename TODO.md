@@ -1,24 +1,19 @@
-* icon for 'dangerous bend/??' ?
 
-* add Arabidopsis analysis?
+* references: https://stackoverflow.com/questions/38260799/references-page-truncated-in-rmarkdown-ioslides-presentation?rq=3
+* table of contents https://github.com/ShKlinkenberg/TOC-for-IOslides-in-Rmarkdown
+
 * Hodges old/new [@hodges_richly_2016]
-* improve/abbreviate bibliography (reflist2? multiple pages?)
 * Julia timing comparison ????
 
-* table of contents https://github.com/ShKlinkenberg/TOC-for-IOslides-in-Rmarkdown
 * QR code
 * set up workstation in HH 
    * laptop as 'presenter notes'
-
-Pictures of covariance matrices (V, ZVZ')
 
 ## lecture 1: to add
 
 * REML
 * formula table spacing
-* cov image plots: remove color bar, fuss with size
 * 2D shrinkage plots (based on sleepstudy etc.?)
-* references: https://stackoverflow.com/questions/38260799/references-page-truncated-in-rmarkdown-ioslides-presentation?rq=3
 * mention conditional modes/BLUPs
 
 ## lecture 2: workflow
@@ -59,6 +54,7 @@ Pictures of covariance matrices (V, ZVZ')
 * image for Wald <-> bootstrap spectrum?
 * check Satt/KR glmmTMB vs lme4
 * predictive simulation example
+* allFit example?
 
 * other platforms (INLA, brms/rstanarm/etc.)
    * feature table?
