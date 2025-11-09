@@ -16,7 +16,6 @@ library(ggplot2); theme_set(theme_bw())
 library(lme4)
 library(glmmTMB)
 library(lmerTest)
-zmargin <- theme(panel.spacing=unit(0,"lines"))
 library(ggplot2)
 library(tidyverse)
 library(plotly)
@@ -25,19 +24,23 @@ library(broom.mixed)
 library(bbmle)
 library(DHARMa)
 library(effects)
-library(marginaleffects)
 ```
 
 You may want to get previously fitted models (this uses the much-maligned `attach()` function)
 
-```{r get_data, eval = FALSE}
+```{r get_data}
+dd <- readRDS("data/ecoreg.rds")
 mod_list <- readRDS("outputs/mod_list.rds")
 attach(mod_list)
+buildmer_list <- readRDS("outputs/buildmer.rds")
+attach(buildmer_list)
+confint_list <- readRDS("outputs/confint.rds")
+attach(confint_list)
+fn_mod <- "outputs/mod_list.rds"
+confint_tidy <- readRDS("outputs/confint_tidy.rds")
 ```
 
-```{r load_data, include = FALSE}
-dd <- readRDS("data/ecoreg.rds")
-fn_mod <- "outputs/mod_list.rds"
+```{r load_data, include = FALSE, echo = FALSE, eval = FALSE}
 if (file.exists(fn_mod)) {
   mod_list <- readRDS(fn_mod)
   ## FIXME: restore buildmer fits here as well
@@ -71,12 +74,12 @@ plot(y ~ x, data = dd, xlab = "longitude", ylab = "latitude")
 dd <- readRDS("data/ecoreg.rds")
 ```
 
-Draw figures: `ggplot` is particular good for its flexibility &mdash; 
+Draw figures: `ggplot` is particular good for its flexibility &mdash; you can easily switch the way you incorporate different predictors (as facets, colours, etc.).
 
 * plot high-dimensional data using all possible mappings - x/y position, colour, shape, line type, plus facets ("small multiples à la Tufte)
 * flexibility to switch among different views of the data on the fly
 * overlay some kinds of summary statistics/summaries on the fly (means, regression lines etc.)
-* tools for grouping (by facet, with `geom_ellipse` or `ggalt::geom_encircle()` ...
+* tools for grouping (by facet, with `geom_ellipse` or `ggalt::geom_encircle()` ...)
 
 Competitors with similar capabilities include `tinyplot` (R): `plotnine`, `seaborn` (Python); `gadfly`, `AlgebraOfGraphic` (Julia), but `ggplot` is mature (e.g. see [ggplot extensions gallery](https://exts.ggplot2.tidyverse.org/gallery/))
 
@@ -296,9 +299,13 @@ cAIC_vec - min(cAIC_vec)
 ## 'full' and 'crazy' are automatically refitted with a subset ... rabbit hole ...
 ```
 
-## compare fits (coefficient plots etc.)
+# plotting (coefficient, effects plots)
 
 Downstream processing (contrasts, marginal effects, plotting, etc.): `effects`, `broom.mixed`, `sjPlot`, `marginaleffects`, `ggeffects`, `emmeans` (see [Mixed Models Task View](https://cran.r-project.org/web/views/MixedModels.html))
+
+## coefficient plots (comparing models)
+
+You **must** (??) decide on a model before comparing parameter estimates &mdash; this step is for understanding sensitivity, not for choosing which model to use.
 
 ```{r coefplot, fig.width = 12}
 tt <-  mod_list |>
@@ -324,7 +331,37 @@ tt2 <-  mod_list2 |>
 print(gg_coef + tt2)
 ```
 
+## coefficient plots (comparing CI approximations)
+
+```{r ci_vals, eval  = FALSE}
+ci_wald <- confint(m_moritz, method = "Wald", signames = FALSE)
+ci_profile <- confint(m_moritz, method = "profile", signames = FALSE)
+ci_boot <- confint(m_moritz, method = "boot", nsim = 1000, parallel = "multicore", ncpus = 6, signames = FALSE)
+confint_list <- tibble::lst(ci_wald, ci_profile, ci_boot)
+```
+
+```{r get_ci_tidy, eval = FALSE}
+confint_tidy <- confint_list |>
+  map(as.data.frame) |>
+  map(~rownames_to_column(., var = "term")) |>
+  bind_rows(.id = "method") |>
+  mutate(effect = ifelse(grepl("^(sd|cor|sigma)", term), "random", "fixed")) |>
+  rename(lwr = "2.5 %", upr = "97.5 %") |>
+  filter(term != "(Intercept)")
+```
+
+```{r confint_comp, fig.width = 14, fig.height = 8, warning = FALSE}
+ggplot(confint_tidy, aes(xmin = lwr, xmax = upr, y = term, colour = method)) +
+  geom_linerange(position = position_dodge(width = 0.75)) +
+  geom_vline(lty = 2, xintercept = 0) +
+  facet_wrap(~effect, scale = "free")
+```
+
+## Effects plots
+
 Effects plots, with *partial residuals* (also see the `remef` package, [on GitHub](https://github.com/hohenstein/remef)).
+
+For conditional and marginal predictions/effects plots, see also `emmeans`/`sjPlot`/`ggeffects`/`marginaleffects` packages ...
 
 ```{r effects, fig.width = 10, fig.height = 8}
 plot(allEffects(m_buildmer_fix_mod, partial.residuals = TRUE))
@@ -332,4 +369,4 @@ plot(allEffects(m_buildmer_fix_mod, partial.residuals = TRUE))
 
 Would like to try `marginaleffects` but struggling ...
 
-## References
+# References

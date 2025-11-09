@@ -18,43 +18,14 @@
 
 ## lecture 2: workflow
 
-* try out Kliegl methods
-
-* identify maximal model
-* specify other modeling decisions (response distribution, link function, etc.)
-* specify model selection strategy
-
-* exploratory (grouping-aware) data analysis
-
-* model fits
-* model selection (if necessary)
-
-* diagnostics
-
-* computationally intensive inference
-    * likelihood profiles
-    * (parametric) bootstrapping
-
-* easy inference
-   * effects plots (with partial residuals)
-   * prediction plots
-   * contrasts, coefficient estimates, etc. (coef plots)
-
-* fitting. compare glmmTMB, lme4 (gamm4), buildmer ...
-* diagnostics
-* model comparison, inference
-* save model list
-* env variable to re-fit models or not (i.e. whether to evaluate fitting chunks)
-* record fitting times? (batch-run file rather than doing it within rmarkdown?)
-
-(works with master lme4, not currently with flexSigma ...)
+* fitting times? (batch-run file rather than doing it within rmarkdown?)
 
 ## lecture 3: frontiers
 
 * image for Wald <-> bootstrap spectrum?
 * check Satt/KR glmmTMB vs lme4
 * predictive simulation example
-* allFit example?
+* allFit example? plotting?
 
 * other platforms (INLA, brms/rstanarm/etc.)
    * feature table?

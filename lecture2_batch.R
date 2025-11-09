@@ -11,6 +11,7 @@ if (!dir.exists(odir)) dir.create(odir)
 fn_mod <- "mod_list.rds"
 fn_buildmer <- "buildmer.rds"
 
+## save everything we've got so far
 checkpoint <- function() {
   fits <- ls(pattern = "^m_", envir = parent.frame())
   buildmer_fits = ls(pattern = "^m_buildmer", envir = parent.frame())
@@ -34,6 +35,7 @@ fun_time <- function(FUN, ...) {
 
 lmer <- function(...) fun_time(lmerTest::lmer, ...)
 glmmTMB <- function(...) fun_time(glmmTMB::glmmTMB, ...)
+tconfint <- function(...) fun_time(confint, ...)
 
 
 dd <- readRDS("data/ecoreg.rds")
@@ -104,3 +106,23 @@ form_kliegl4 <- mbirds_log ~
   rr(1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc | flor_realms, d=3) +
   rr(1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | biome_FR, d=4)
 m_kliegl4 <- glmmTMB(form_kliegl4, dd, REML=TRUE)
+
+checkpoint()
+
+## profile CIs/parametric bootstrap
+ci_wald <- tconfint(m_moritz, method = "Wald", signames = FALSE)
+ci_profile <- tconfint(m_moritz, method = "profile", signames = FALSE)
+ci_boot <- tconfint(m_moritz, method = "boot", nsim = 1000, parallel = "multicore", ncpus = 6, signames = FALSE)
+
+confint_list <- tibble::lst(ci_wald, ci_profile, ci_boot)
+
+ci_tidy <- confint_list |>
+  map(as.data.frame) |>
+  map(~rownames_to_column(., var = "term")) |>
+  bind_rows(.id = "method") |>
+  mutate(effect = ifelse(grepl("^(sd|cor|sigma)", term), "random", "fixed")) |>
+  rename(lwr = "2.5 %", upr = "97.5 %") |>
+  filter(term != "(Intercept)")
+
+saveRDS(confint_list, file = "outputs/confint.rds")
+saveRDS(ci_tidy, file = "outputs/confint_tidy.rds")
