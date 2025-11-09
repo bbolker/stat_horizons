@@ -5,7 +5,7 @@
 * improve/abbreviate bibliography (reflist2? multiple pages?)
 * Julia timing comparison ????
 
-* table of contents
+* table of contents https://github.com/ShKlinkenberg/TOC-for-IOslides-in-Rmarkdown
 * QR code
 * set up workstation in HH 
    * laptop as 'presenter notes'
@@ -14,12 +14,16 @@ Pictures of covariance matrices (V, ZVZ')
 
 ## lecture 1: to add
 
+* REML
 * formula table spacing
 * cov image plots: remove color bar, fuss with size
 * 2D shrinkage plots (based on sleepstudy etc.?)
 * references: https://stackoverflow.com/questions/38260799/references-page-truncated-in-rmarkdown-ioslides-presentation?rq=3
+* mention conditional modes/BLUPs
 
 ## lecture 2: workflow
+
+* try out Kliegl methods
 
 * identify maximal model
 * specify other modeling decisions (response distribution, link function, etc.)
@@ -51,6 +55,10 @@ Pictures of covariance matrices (V, ZVZ')
 (works with master lme4, not currently with flexSigma ...)
 
 ## lecture 3: frontiers
+
+* image for Wald <-> bootstrap spectrum?
+* check Satt/KR glmmTMB vs lme4
+* predictive simulation example
 
 * other platforms (INLA, brms/rstanarm/etc.)
    * feature table?

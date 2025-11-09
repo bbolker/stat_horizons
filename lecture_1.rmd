@@ -67,7 +67,6 @@ library(plotrix) ## for axis.break
 library(reshape2)
 library(ggplot2)
 library(RColorBrewer)
-library(mvbutils) ## for foodweb()
 library(lme4)
 library(tidyverse)
 library(MASS)
@@ -509,12 +508,12 @@ $$
 
 ## The maximal model is often too complex
 
-- for a RE where $n$ effects vary across clusters we need to estimate $n(n+1)/2$ covariance parameters
+- for a RE where $n$ effects vary across clusters we need to estimate $p = n(n+1)/2$ covariance parameters
 - e.g. bloodworm example: 5×4×4×2 factorial design (160 combinations), all measured in each of 10 individuals. 
-    - Even treating covariates as numeric, allowing all interactions, gives 16 effects → 136 parameters
-    - Categorical predictors, without interactions: 12 effects → 78 parameters
-    - Numeric predictors, no interactions: 4 effects → 10 parameters
-- **but** ignoring variation of within-cluster effects can also be dangerous [@schielzeth_conclusions_2009; heisigWhy2019a; @oberauerImportance2022]
+    - Treating covariates as numeric, allow all interactions: 16 effects → $p=136$
+    - Categorical predictors, no interactions: 12 effects → $p=78$
+    - Numeric predictors, no interactions: 4 effects → $p=10$
+- **but** ignoring variation of within-cluster effects can also be dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022]
 
 
 Estimation
@@ -702,5 +701,12 @@ approximation for GLM(M)s
 * ... or spatial/temporal/functional structure? [@wood_generalized_2017]
 * prediction/inference: population level or the cluster level [@vaida_conditional_2005] ?
 * counting parametes?
+
+<style>
+slides > slide { overflow: scroll; }
+slides > slide:not(.nobackground):after {
+  content: '';
+}
+</style>
 
 ## references  {.refs}

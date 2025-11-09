@@ -1,6 +1,9 @@
 ALL: lecture_1.html lecture_2.html lecture_3.html
 Rcb = R CMD BATCH --vanilla
 
+fix_lme4:
+	cd ~/R/pkgs/lme4; git checkout master; R CMD INSTALL .
+
 %.html: %.rmd ./glmm.bib
 	Rscript -e "rmarkdown::render('$<')"
 

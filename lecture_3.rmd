@@ -46,6 +46,10 @@ img {
 </style>
 
 
+
+<!-- https://stackoverflow.com/questions/46104530/table-of-contents-in-r-markdown-ioslides -->
+<link rel="stylesheet" href="toc.css">
+
 ```{r knitr,include=FALSE, message = FALSE}
 require("knitr")
 knit_hooks$set(crop=hook_pdfcrop)
@@ -53,6 +57,7 @@ knit_hooks$set(crop=hook_pdfcrop)
 ##               out.width="0.6\\textwidth",
 ##               fig.align="center",echo=FALSE)
 opts_chunk$set(echo=FALSE)
+options(digits = 3)
 ```
 
 ```{r pkgs,message=FALSE}
@@ -61,8 +66,8 @@ library(plotrix) ## for axis.break
 library(reshape2)
 library(ggplot2)
 library(RColorBrewer)
-library(mvbutils) ## for foodweb()
 library(lme4)
+library(glmmTMB)
 library(tidyverse)
 library(MASS)
 library(nlme)
@@ -83,104 +88,126 @@ scale_fill_discrete <- function(...) {
 }
 ```
 
+## Table of contents
+
+<div id="toc"></div>
+
 # Inference details
 
 ## Confidence intervals/$p$-values
 
 * as with GLMM fitting, methods range from "easy, less accurate" to "computationally expensive, more accurate"
    * Wald approximations
-   * Profile likelihood
-   * (Parametric) bootstrap
-* easy methods improve as number of observations *and* number of clusters grows
+   * Likelihood ratio test/Profile likelihood
+   * Bootstrap
+   * MCMC (Bayesian) ...
+* easy methods work better as number of observations *and* number of clusters grows
 * easy methods work better for fixed effects than for RE variances
 
-## Wald approximation
+## Wald approximation: hypothesis tests
 
-most important:
-
-- small sample sizes
-- values near boundaries
-     - changing scales may help
-
-more important for variance parameters than fixed-effect parameters
-
-## Finite-size corrections
-
-e.g. Normal vs. $t$
-
-## Posterior predictive simulation
-
-- if there is some value you're interested in that you can compute from your data (e.g. number of zero observations, or total NPP), you can `simulate()` it fro the fitted model:
-
-```{r pps}
-
-```
-
-## Inference: fixed effects, Wald
-
-- parameter estimates: `summary()`
-- termwise tests: `car::Anova`, `afex::anova`
-- contrasts/effects/post-hoc tests: `emmeans`, `effects` packages
+- assumes log-quadratic likelihood surface  
+(exact for linear models)
+- output of `summary()` (and `car::Anova()`, `afex::anova()`)
+- contrasts/post-hoc tests: `emmeans`
+- especially unreliable for random-effects (co)variances/correlations
+- confidence intervals: `confint(., method = "Wald")` (fixed only)
 
 ```{r anova,results="hide",message=FALSE}
-m1 <- lmer(Reaction ~ Days + (Days|Subject), sleepstudy)
+set.seed(20251108)
+ss <- sleepstudy[sample(round(0.7*nrow(sleepstudy)), replace = FALSE),]
+m1 <- lmer(Reaction ~ Days + (Days|Subject), ss)
 car::Anova(m1)
+```
+
+```{r glmmTMB_fit, echo = FALSE}
+m2 <- glmmTMB(Reaction ~ Days + (Days|Subject), ss, REML = TRUE)
 ```
 
 ## Degrees of freedom
 
-- level-counting: `R/calcDenDF.R`
-- `lmerTest`/`afex`; Satterthwaite, Kenward-Roger
+- account for uncertainty in variance estimation ($Z$ vs $t$)
+- matters when number of groups is 'small' (<50?)
+- level-counting: `nlme::lme()`, `R/calcDenDF.R`
+- `lmerTest`/`afex`; Satterthwaite:
 
-```{r lmerTest, message=FALSE}
+```{r lmerTest, message=FALSE, echo = FALSE}
 library(lmerTest)
-summary(as_lmerModLmerTest(m1))
-summary(as_lmerModLmerTest(m1),ddf="Kenward-Roger")
+printCoefmat(coef(summary(as_lmerModLmerTest(m1))), digits = 3, signif.stars = FALSE)
 ```
 
-Q: Why not use `lmerTest` all the time?  
-A: it can make it a little harder to diagnose fitting problems
+- Kenward-Roger: only applicable to REML fits (LMMs?); also adjusts variances
 
-## Inference: fixed effects, likelihood ratio test
+```{r lmerTest_kr, echo = FALSE}
+printCoefmat(coef(summary(as_lmerModLmerTest(m1), ddf = "Kenward-Roger")), digits = 3, signif.stars = FALSE)
+```
+
+## Likelihood ratio test/profile confidence intervals
 
 - individual parameters: `profile()`, `confint()`
 - fit pairwise models and use `anova()` to compare
 - `drop1`, `afex::anova()`
 
-```{r ci, cache=TRUE}
-confint(m1)
+```{r ci, cache=TRUE, message = FALSE}
+(ci1 <- confint(m1, signames = FALSE))
 ```
 
-What took so long?
+## Likelihood profiles
+
+Why did `confint()` take so long?
 
 ```{r prof,cache=TRUE,echo=FALSE,fig.width=10}
-pp <- as.data.frame(profile(m1,signames=FALSE))
-ggplot(pp,aes(.focal,.zeta^2))+geom_point()+geom_line()+
-    facet_wrap(~.par,scale="free_x")+
-    labs(x="",y="negative log-likelihood")
+pp <- as.data.frame(profile(m1,signames=FALSE)) |>
+  transform(.par = factor(.par, levels = unique(.par)))
+
+ci_data <- ci1 |>
+  as.data.frame() |>
+  setNames(c("lwr", "upr")) |>
+  transform(.par = rownames(ci1))
+
+ggplot(pp)+
+  geom_point(mapping= aes(.focal,.zeta^2))+
+  geom_line(mapping = aes(.focal,.zeta^2))+
+  facet_wrap(~.par,scale="free_x")+
+  labs(x="",y="negative log-likelihood") +
+  geom_hline(data = ci_data, aes(yintercept  = 3.84), lty = 2, colour = "red") +
+  geom_rect(data = ci_data, aes(xmin = lwr, xmax = upr, ymin = -Inf, ymax = Inf),  fill = "blue",
+            colour = NA, alpha = 0.4)
 ```
 
-## Inference: parametric bootstrap
+## Likelihood ratio tests of variances are problematic
 
-Very slow!
+* theory of LRT fails when $H_0$ is "on the boundary"
+* e.g. testing whether variance is 0
+* simplest cases, conservative ($p$-vals are 2X nominal)
+* do you really need to hypothesis-test random effects?
+* bootstrapping ...
 
-- `pbkrtest`
-- `confint(.,method="boot")`
+## Bootstrap 
 
-## Inference: random effects
+* @thaicomparison2013
+* *nonparametric*: resampling with replacement (`lmeresampler` package)
+* straightforward for nested models
+* hard for crossed models: *nonparametric* bootstrapping
+   * simulate from fitted model, refit, extract estimates
+   * `confint(., method = "boot")`, `bootMer()`, `pbkrtest` package
+* slow! (some methods are parallelized)
+* estimate CIs on any quantity, e.g. ratios of variances
 
-- Wald is probably very bad
-- profile, `anova()`
-- parametric bootstrap
-- boundary problems
+## Predictive simulation
 
-## Inference: CIs on predictions etc.
+- `simulate()` new data from fitted model
+- parameters fixed at best estimates (unlike nonpar bootstrap)
+- can either use 'estimated' conditional modes or draw new random values
+- does *not* include parameter uncertainty
 
-(possible now. distinction between `lme4` (conditions on theta-hat) vs `glmmTMB` (full))
+```{r pps}
+
+```
 
 # Troubleshooting
 
-## What is a "singular fit"?
+## What is a "singular fit"? {.columns-2}
 
 * non-positive-definite covariance matrix
 * zero variance (simple case)
@@ -188,27 +215,32 @@ Very slow!
 * hard to recognize in the general case! 
 * some linear combination(s) of random-effect variables have zero variance
 
-```{r eval = FALSE}
+```{r rgl_sing3d, eval = FALSE, echo = FALSE}
+dd <- readRDS("data/ecoreg.rds")
+set.seed(20251108)
+dds <- dd[sample(nrow(dd), size = round(nrow(dd)*0.7), replace = FALSE), ]
+m_full <- lmer(mmamm_log ~ 1 + (0 + Feat_cv_sc + NPP_cv_sc + area_km2_log_sc | flor_realms), data = dd)
+m_sing <- lmer(mmamm_log ~ 1 + (0 + Feat_cv_sc + NPP_cv_sc + area_km2_log_sc | flor_realms), data = dds)
+
 library(rgl)
 open3d()
-ellipse3d(scale = c(2, 3, 0))
-cormat <- diag(3)
-cormat[lower.tri(cormat)] <- c(0.6,0.2, 0.3)
-cormat[upper.tri(cormat)] <- t(cormat)[upper.tri(cormat)]
-v <- outer(sd, sd) * cormat
-plot3d(ellipse3d(v), xlim = c(-3, 3),
-       ylim = c(-3, 3), zlim = c(-3, 3), col = "blue")
-lines3d(ee[,1], ee[,2], 0)
-points3d(ee[,1], ee[,2], 0)
-indices <- seq(nrow(ee))
-wire3d( mesh3d(vertices = ee, quads = indices) )
+vc <- Matrix::nearPD(VarCorr(m_sing)[[1]])$mat |> as.matrix()
+vc_full <- as.matrix(VarCorr(m_full)[[1]])
+lims <- c(-0.6, 0.6)
+plot3d(ellipse3d(vc), xlim = lims, ylim = lims, zlim = c(-0.2, 0.2), col = "blue", alpha = 0.7)
+plot3d(ellipse3d(vc_full), col = "green", add = TRUE, alpha = 0.7)
+rgl.snapshot("pix/sing3d.png")
+```
+
+```{r}
+knitr::include_graphics("pix/sing3d_crop.png")
 ```
 
 ## Why are fits singular?
 
 Essentially, because the *observed* among-group variation is less than
-the *expected* among-group variation (= $\sigma^2_{\mbox{among}} +
-\sigma^2_{\mbox{within}}/n$). More generally, because *some* dimension
+the *expected* among-group variation $\left( = \frac{\sigma^2_{\textrm{among}} +
+\sigma^2_{\textrm{within}}}{n} \right)$. More generally, because *some* dimension
 of the variance-covariance matrix has zero extent ...
 
 ```{r singsims,echo=FALSE,fig.width=7,fig.height=4,cache=TRUE,message=FALSE,warning=FALSE}
@@ -240,6 +272,7 @@ invisible(dev.off())
 ## What to do about singular fits?
 
 * ignore them, or drop terms
+* switch a random effect to fixed
 * simplify the model
 * regularize/add priors
 * full Bayesian treatment
@@ -250,40 +283,66 @@ invisible(dev.off())
 * Dropping a (full) singular term gives the same results/predictions/etc.
     * It does narrow confidence intervals (if using profile CIs)
 
+## Switch a random effect to fixed
 
+- especially for top-level clusters with few levels
+- admit you can't estimate the variance (RE variance $\to \infty$)
+    - more conservative than dropping/pooling (RE variance = 0)
+- e.g. *Arabidopsis*: region (3) / population (9) / genotype (24), use `~ reg + (1|(reg:population)/genotype)`
 
-## Simplified versions of models
+## Simplifying random effect terms
 
-- "complex random intercepts" [@scandolaReliability2024a]
-- `(1|b/a)` ([positive] compound symmetry) vs. `(a|b)`:
+* drop some varying effects 
+   * e.g. random intercepts and slopes → random intercepts only
+* set correlations among parameters to zero (diagonal covariance matrix)
+* set all correlations among parameters equal (*compound symmetric* model)
+* *reduced rank* models
+
+## Complex random effects
+
+* @scandolaReliability2024a
+* Suppose factor `f` (5 levels) varies within groups `g`
+* `(f|g)`: $(n(n+1))/2 = (5\times 6)/2 = 15$ parameters)
+
 $$
-(\textrm{intercept}, \textrm{slope}) =
-\textrm{MVN}\left(\boldsymbol 0,
+\newcommand{\oneentryone}{\sigma^2_{\{\scriptscriptstyle g|1\}}}
+\newcommand{\oneentry}[1]{\sigma^2_{\{\scriptscriptstyle g|f_{#1}\}}}
+\newcommand{\twoentry}[2]{\sigma_{\scriptscriptstyle \{g|f_{#1}\},\{g|f_{#2}\}}}
+\newcommand{\twoentryone}[1]{\sigma_{\scriptscriptstyle \{g|1\},\{g|f_{#1}\}}}
 \left[
-\begin{array}{ccccc}
-\sigma^2_{\{b|1\}}  & . & . & . & . \\
-\sigma_{\{b|1\},\{b|a_{21}\}} &
-\sigma^2_{\{b|a_{21}\}} & . & . & . \\
-\sigma_{\{b|1\},     \{b|a_{31}\}} &
-\sigma_{\{b|a_{21}\},\{b|a_{31}\}} &
-\sigma^2_{\{b|a_{31}\}} & . & . \\
-\sigma_{\{b|1\}     ,\{b|a_{41}\}} &
-\sigma_{\{b|a_{21}\},\{b|a_{41}\}} &
-\sigma_{\{b|a_{31}\},\{b|a_{41}\}} &
-\sigma^2_{\{b|a_{41}\}} & . \\
-\sigma_{\{b|1\},\{b|a_{51}\}} &
-\sigma_{\{b|a_{21}\},\{b|a_{51}\}} &
-\sigma_{\{b|a_{31}\},\{b|a_{51}\}} &
-\sigma_{\{b|a_{41}\},\{b|a_{51}\}} &
-\sigma^2_{\{b|a_{51}\}}
+  \begin{array}{ccccc}
+    \oneentryone & . & . & . & . \\
+    \twoentryone{21} & \oneentry{21} & . & . & . \\
+    \twoentryone{31} & \twoentry{21}{31} & \oneentry{31} & . & . \\
+    \twoentryone{41} & \twoentry{21}{41} & \twoentry{31}{41} & \oneentry{41} & . \\
+    \twoentryone{51} & \twoentry{21}{51} & \twoentry{31}{51} & \twoentry{41}{51} & \oneentry{51}
 \end{array}
 \right]
-\right)
 $$
-(=$(n(n+1))/2 = (4\times 5)/2 = 10$ parameters)
-vs.
+
+## Sum-to-zero contrasts
+
+* change from *treatment* to *sum-to-zero* contrasts
+* coefficients are means of each level, not baseline/differences from baseline
+
 $$
 \left[
+  \begin{array}{ccccc}
+    \oneentry{1} & . & . & . & . \\
+    \twoentry{1}{2} & \oneentry{2} & . & . & . \\
+    \twoentry{1}{3} & \twoentry{2}{3} & \oneentry{3} & . & . \\
+    \twoentry{1}{4} & \twoentry{2}{4} & \twoentry{3}{4} & \oneentry{4} & . \\
+    \twoentry{1}{5} & \twoentry{2}{5} & \twoentry{3}{5} & \twoentry{4}{5} & \oneentry{5}
+\end{array}
+\right]
+$$
+
+## Complex random effects
+
+* replace `(1+f|g)` with `(1|g/f)`
+
+$$
+\Sigma = \left[
 \begin{array}{ccccc}
 \sigma^2 & . & . & . & . \\
 \rho \sigma^2 & \sigma^2 & . & . & . \\
@@ -293,19 +352,27 @@ $$
 \end{array}
 \right]
 $$
-where $\sigma^2 = \sigma^2_{\{b|1\}}+\sigma^2_{\{a:b|1\}}$,
-$\rho = \sigma^2_{\{b|1\}}/\sigma^2$ (=2 parameters;
-$\rho$ must be >0)
 
-- `(1+x+y+z||b)`
-     - independent terms
-     - expands to `(1|b) + (0+x|b) + ...`
-	 - `lme4` version **only works properly for continuous predictors**
-	 - `afex::mixed` can do this
-	 - independent model is no longer invariant to shifts/reparameterization
-	 - $n$ instead of $n(n+1)/2$ parameters
-- RE "nested within" FE, e.g. if not enough groups at the top level;
-`y ~ g1 + (1|g1:g2)`; *more* parameters but fixed rather than random
+* where $\sigma^2 = \sigma^2_{f}+\sigma^2_{g}$, $\rho = \frac{\sigma^2_{g}}{\sigma^2}$
+* $\rho>0$; all variances identical
+* `cs()` (`glmmTMB`), `corCompSymm` (`nlme`)
+
+## Diagonal covariance matrices
+
+- `(1+x+y+z||b)` or `diag(1+x+y+z|b)`
+     - or `(1|b) + (0+x|b) + ...`
+- `lme4` version **only works properly for continuous predictors**
+- `afex::mixed` can do this
+- contrasts/centering matters!
+- $n$ instead of $n(n+1)/2$ parameters
+
+## Reduced-rank covariance models
+
+* 'factor analytic' or 'reduced rank'
+* $d$-dimensional covariance matrix in a $p$-dimensional space
+* $\Sigma = \Lambda D \Lambda^\top$ ($\Lambda$ is the *factor loading matrix*)
+* $d \cdot p - d(d-1)/2$ parameters
+* available in R: `glmmTMB`, `sommer`, `lme4breeding`: ASReml
 
 ## Convergence failures ![](pix/skullcross_tiny.png)
 
@@ -317,7 +384,7 @@ $\rho$ must be >0)
      - `$fixef`, etc.: are answers sufficiently similar?
      - `$llik`: how similar is goodness-of-fit?
 
-```{r allFit_ex, cache=TRUE, message=FALSE}
+```{r allFit_ex, cache=TRUE, message=FALSE, echo = FALSE, eval = FALSE}
 m1 <- lmer(Reaction ~ Days + (Days|Subject), sleepstudy)
 aa <- allFit(m1)
 ss <- summary(aa)
@@ -325,32 +392,92 @@ names(ss)
 ss$fixef
 ```
 
-```{r allFit_more}
+```{r allFit_more, echo = FALSE, eval = FALSE}
 ss$sdcor
 ss$llik-min(ss$llik)
 ```
 
-## How to decide what model to use?
+## Which model to use?
 
-- Most complex RE model that can reasonably be fitted
-- Lots of disagreement
-     - @barr_random_2013: "keep it maximal"
-     - @bates_parsimonious_2015, @matuschek_balancing_2017: more initial parsimony
-	 - ? use most complex non-singular model ?
-
-PCA of RE variance-covariance matrix:
-
-```{r rePCA}
-rePCA(m1)
-```
-
+- @barr_random_2013: "keep it maximal"; reduce until no more convergence failures
+- @bates_parsimonious_2015, @matuschek_balancing_2017: more parsimony
+- R. Kliegl: best non-singular
+    * make singular terms diagonal
+	* drop elements with small variances
+	* try full (unstructured) model with only these elements
+- brute-force: non-singular, best AIC [@moritzrole2023a]
+- inspect principal components of covariance matrix? (`rePCA`)
 
 # Structured covariances
 
-##
+## Spatial/temporal
+
+* AR1 (autoregressive order-1): correlations $\rho$, $\rho^2$, $\rho^3$ ... for lagged pairs in space/time
+* irregular time/1D space: Ornstein-Uhlenbeck/CAR1 ($\rho = \phi^{-\Delta t}$)
+* geostatistical (Gaussian-process) correlation models: exponential, Matérn ...
+* `glmmTMB`, `mgcv`, `INLA`, `spaMM`
+
+## Smooth terms
+
+* can use mixed-model/latent-variable frameworks to fit smooth *functional* terms
+* additive models (penalized regression): add penalty $\sigma^2 b S b^\top$
+* exactly equivalent to the random-effects component in a mixed model
+* @wahbaSplineModelsObservational1990; @wood_generalized_2017; @hefleyBasis2017; @pedersenHierarchical2018
+* `mgcv`, `gamm4`, `glmmTMB`
+
+## 
+
+```{r out.width = "100%"}
+knitr::include_graphics("pix/ab1mvs.jpg")
+```
+
+# Big data?
+
+## The need for speed 
+
+<!-- https://tex.stackexchange.com/questions/250623/how-to-generate-a-4-up-table-of-images-with-pandoc -->
+
+@brooks_modeling_2017 (negative binomial model)
+
+![](pix/bigfit2.png)
+
+## more speed
+
+![](pix/bigfit1.png)
+ 
+## Julia/R benchmark
+
+* Poisson model, 98K rows/151 groups [@markwickFittingMixedEffects2022]
+
+```{r markwick_bench, echo = FALSE}
+benchdat <- read.table(header = TRUE, sep = "|", text = "
+Language | param | Mean  | Median  | Min  | Max
+Julia |   |11.151  | 10.966  | 9.963  | 16.150
+Julia  | fast=true  | 5.94  | 5.924  | 4.98  | 8.15
+R  |   | 35.4  | 33.12  | 24.33  | 66.48
+R  | nAGQ=0  | 8.06  | 7.99  | 7.37  | 9.56
+") |>
+  dplyr::mutate(param = trimws(param),
+                Language = trimws(Language),
+                method = paste(Language, ifelse(param == "", "", sprintf("(%s)", param)))) |>
+  dplyr::mutate(method = factor(method, levels = method))
+ggplot(benchdat, aes(y = method)) +
+  geom_linerange(aes(xmin=Min, xmax = Max)) +
+  geom_point(aes(x=Mean)) +
+  geom_point(aes(x=Median), pch = 23) +
+  scale_x_log10() +
+  labs (y = "", x = "Time (seconds)") +
+  theme_bw(base_size=20)
+```
+
+## Scalable mixed models
+
+* @gaoEstimationInferenceVery2020; @ghoshScalableLogisticRegression2022; @bellioConsistentScalableComposite2025
+* ${\cal O}(N)$ methods (`lme4` etc. are ${\cal O}(N^{3/2})$)
+* StitchFix data: 5M observations, 6.3K items, 762K clients
 
 ```{r}
-knitr::include_graphics("pix/ab1mvs.jpg")
+knitr::include_graphics("pix/gao_owen.png")
 ```
 
 # Challenges & open questions
@@ -390,35 +517,12 @@ knitr::include_graphics("pix/ab1mvs.jpg")
 -   Model diagnosis
 -   Confidence intervals accounting for uncertainty in variances
 
-## The need for speed [@brooks_modeling_2017]
 
-<!-- https://tex.stackexchange.com/questions/250623/how-to-generate-a-4-up-table-of-images-with-pandoc -->
-
-
-![](pix/bigfit2.png)
-
-## more speed
-
-![](pix/bigfit1.png)
- 
-
-## Spatial and temporal correlations
-
--   Sometimes blocking takes care of non-independence ...
--   but sometimes there is temporal or spatial correlation *within* blocks
--    ... also phylogenetic ... [@ives_statistics_2006]
--   "G-side" vs. "R-side" effects
--   tricky to implement for GLMMs, but new possibilities on the horizon
-[@Rue+2009; @rousset_testing_2014];
-[https://github.com/stevencarlislewalker/lme4ord](lme4ord package)
-
-## Next steps
-
--   Complex random effects:   
-    regularization, model selection, penalized methods (lasso/fence)
--   Flexible correlation and variance structures
--   Flexible/nonparametric random effects distributions
--   hybrid & improved MCMC methods
--   *Reliable* assessment of out-of-sample performance
+<style>
+slides > slide { overflow: scroll; }
+slides > slide:not(.nobackground):after {
+  content: '';
+}
+</style>
 
 ## references  {.refs}
