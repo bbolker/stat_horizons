@@ -10,8 +10,20 @@ author: Ben Bolker
 * lecture 1 ([HTML](lecture_1.html), [PDF](lecture_1.pdf))
 * lecture 2 [live coding] ([HTML](lecture_2.html), [PDF](lecture_2.pdf))
 * lecture 3 ([HTML](lecture_3.html), [PDF](lecture_3.pdf))
+* [ridiculously complete bibliography](glmm_bib.html)
 
-## setup material
+## Setup material
+
+You don't need to install/set up anything unless you want to follow along with the second hour of lecture (live coding). If you do, you should have
+
+* recent versions (>=4.4) of R and RStudio
+* the packages below (download the file and `source("install_pkgs.R")` in R or click on the 'source' button in RStudio
+* if you get warnings when loading the `glmmTMB` package, try
+```{r eval=FALSE}
+install.packages('glmmTMB',
+     repos = c('https://glmmtmb.r-universe.dev', 'https://cloud.r-project.org'))
+```
+(if this doesn't fix it please let me know, although the warnings are probably harmless)
 
 * [install_pkgs.R](install_pkgs.R)
 * [Rmarkdown for lecture 2](lecture_2.rmd)

@@ -1,4 +1,4 @@
-ALL: docs/lecture_1.html docs/lecture_2.html docs/lecture_3.html docs/lecture_2.pdf docs/index.html docs/install_pkgs.R
+ALL: docs/lecture_1.html docs/lecture_2.html docs/lecture_3.html docs/lecture_2.pdf docs/index.html docs/install_pkgs.R docs/glmm_bib.html
 
 .SECONDARY:
 
@@ -15,6 +15,10 @@ docs/%.pdf: docs/%.html
 	chromium --headless --print-to-pdf=$@ $<
 
 docs/%.html: %.rmd ./glmm.bib
+	mkdir -p docs
+	Rscript -e "rmarkdown::render('$<')"; mv $(basename $<).html docs
+
+docs/%.html: %.md ./glmm.bib
 	mkdir -p docs
 	Rscript -e "rmarkdown::render('$<')"; mv $(basename $<).html docs
 
