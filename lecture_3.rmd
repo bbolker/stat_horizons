@@ -1,6 +1,7 @@
 ---
 title: "mixed models: challenges and frontiers"
 author: "Ben Bolker"
+date: "18 November 2025"
 bibliography: "glmm.bib"
 csl: reflist2.csl
 output:
@@ -38,6 +39,10 @@ h3 {
 .title-slide {
    background-color: #55bbff;
 }
+.small {
+   font-size: 16px;
+}
+
 </style>
 <!--    content: url(https://i.creativecommons.org/l/by-sa/4.0/88x31.png)
 >
@@ -120,12 +125,12 @@ scale_fill_discrete <- function(...) {
 ```{r anova,results="hide",message=FALSE}
 set.seed(20251108)
 ss <- sleepstudy[sample(round(0.7*nrow(sleepstudy)), replace = FALSE),]
-m1 <- lmer(Reaction ~ Days + (Days|Subject), ss)
+m1 <- lmer(Reaction ~ Days + (1+Days|Subject), ss)
 car::Anova(m1)
 ```
 
 ```{r glmmTMB_fit, echo = FALSE}
-m2 <- glmmTMB(Reaction ~ Days + (Days|Subject), ss, REML = TRUE)
+m2 <- glmmTMB(Reaction ~ Days + (1+Days|Subject), ss, REML = TRUE)
 ```
 
 ## Degrees of freedom
@@ -220,6 +225,7 @@ ggplot(pp)+
 * some linear combination(s) of random-effect variables have zero variance
 
 ```{r rgl_sing3d, eval = FALSE, echo = FALSE}
+## slightly hacky example derived from fire model
 dd <- readRDS("data/ecoreg.rds")
 set.seed(20251108)
 dds <- dd[sample(nrow(dd), size = round(nrow(dd)*0.7), replace = FALSE), ]
@@ -276,9 +282,9 @@ invisible(dev.off())
 ## What to do about singular fits?
 
 * ignore them, or drop terms
-* switch a random effect to fixed
-* simplify the model
+* switch from random to fixed effects
 * regularize/add priors
+* simplify the model
 * full Bayesian treatment
 
 ## Ignoring/dropping terms
@@ -287,12 +293,22 @@ invisible(dev.off())
 * Dropping a (full) singular term gives the same results/predictions/etc.
     * It does narrow confidence intervals (if using profile CIs)
 
-## Switch a random effect to fixed
+## Switch from random to fixed effects
 
 - especially for top-level clusters with few levels
 - admit you can't estimate the variance (RE variance $\to \infty$)
     - more conservative than dropping/pooling (RE variance = 0)
 - e.g. *Arabidopsis*: region (3) / population (9) / genotype (24), use `~ reg + (1|(reg:population)/genotype)`
+
+## Regularize/add priors
+
+* Bayesians don't care about singular fits  
+(they look at the whole posterior distribution, not just the MLE/mode)
+* quasi-Bayesian approach: *regularize*
+* add a penalty (== prior) to keep estimates away from zero/boundaries
+* @chung_nondegenerate_2013: add a weak prior that prevents singularity
+* `blme`, `glmmTMB` packages
+* useful in other cases (complete separation in logistic models)
 
 ## Simplifying random effect terms
 
@@ -302,11 +318,11 @@ invisible(dev.off())
 * set all correlations among parameters equal (*compound symmetric* model)
 * *reduced rank* models
 
-## Complex random effects
+## Simplifying covariance matrices
 
 * @scandolaReliability2024a
 * Suppose factor `f` (5 levels) varies within groups `g`
-* `(f|g)`: $(n(n+1))/2 = (5\times 6)/2 = 15$ parameters)
+* `(1+f|g)`: $(n(n+1))/2 = (5\times 6)/2 = 15$ parameters)
 
 $$
 \newcommand{\oneentryone}{\sigma^2_{\{\scriptscriptstyle g|1\}}}
@@ -370,12 +386,12 @@ $$
 - contrasts/centering matters!
 - $n$ instead of $n(n+1)/2$ parameters
 
-## Reduced-rank covariance models
+## Reduced-rank covariance matrices
 
 * 'factor analytic' or 'reduced rank'
 * $d$-dimensional covariance matrix in a $p$-dimensional space
 * $\Sigma = \Lambda D \Lambda^\top$ ($\Lambda$ is the *factor loading matrix*)
-* $d \cdot p - d(d-1)/2$ parameters
+* $d \cdot p - \frac{d(d-1)}{2}$ parameters (linear in $p$)
 * available in R: `glmmTMB`, `sommer`, `lme4breeding`: ASReml
 
 ## Convergence failures ![](pix/skullcross_tiny.png)
@@ -428,6 +444,13 @@ ss$llik-min(ss$llik)
 * exactly equivalent to the random-effects component in a mixed model
 * @wahbaSplineModelsObservational1990; @wood_generalized_2017; @hefleyBasis2017; @pedersenHierarchical2018
 * `mgcv`, `gamm4`, `glmmTMB`
+
+## 'Old' and 'new' random effects [@hodges_richly_2016]
+
+* do random effects/latent variables represent differences among exchangeable groups ...
+* ... or spatial/temporal/functional structure? [@wood_generalized_2017]
+* prediction/inference: population level or the cluster level [@vaida_conditional_2005] ?
+* counting parameters?
 
 ## 
 
@@ -484,13 +507,14 @@ ggplot(benchdat, aes(y = method)) +
 knitr::include_graphics("pix/gao_owen.png")
 ```
 
-# Challenges & open questions {.section}
+# Challenges and open questions {.section}
 
 ## On beyond `lme4`
 
-- `glmmTMB`: zero-inflated and other distributions
+- `glmmTMB`: zero-inflation, weird conditional distributions
 - `MCMCglmm`, `brms`,`rstanarm`: Bayesian
-- `INLA`: spatial and temporal correlations
+- `gllvm`: multivariate ecological/phylogenetic data
+- `INLA`: great for spatial and temporal structures
 - [rethinking package](https://github.com/rmcelreath/rethinking)
 
 ## Toolboxes
@@ -499,28 +523,40 @@ knitr::include_graphics("pix/gao_owen.png")
 - TensorFlow (R: `greta`)
 - NIMBLE (R: `nimble` package)
 - Stan (R: `rstan`)
-- TMB (R: `TMB`)
+- TMB (R: `TMB`, `RTMB`)
 
-## On beyond R
+## On beyond R {.columns-2}
 
-- Julia: `MixedModels.jl` package
+- Julia: `MixedModels.jl`
 - SAS: PROC MIXED, NLMIXED
 - AS-Reml
 - Stata (GLLAMM, xtmelogit)
 - HLM, MLWiN
+- Python? (`pymer4`, `statsmodels`)
 
-![image](pix/300px-On_Beyond_Zebra.jpg){width="3cm"}
+```{r zebra, out.width="50%"}
+knitr::include_graphics("pix/300px-On_Beyond_Zebra.jpg")
+```
+
+## Package comparison {.small}
+
+| Capability | lme4 | GLMMadaptive | glmmTMB | mgcv | nlme | glmmrBase |
+|------------|------|--------------|---------|------|------|------------|
+| Linear mixed models | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| GLMMs | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ |
+| Laplace approximation | ✅ | ❌ | ✅ | ✅ (PQL) | ✅ | ✅ |
+| Gauss–Hermite quadrature | ✅ (limited) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Structured covariance (CS/AR1/etc.) | ⚠️ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Space/time covariance | ❌ | ❌ | ✅ | ⚠️ | ✅ | ✅ |
+| Heteroscedasticity | ❌ | ⚠️ | ✅ | ⚠️ | ✅ | ✅ |
 
 ## Challenges
 
--   Small clusters: need AGQ/MCMC
--   Small numbers of clusters: need finite-size corrections (KR/PB/MCMC)
--   Small data sets: issues with *singular* fits  
-[@barr_random_2013] vs. [@bates_parsimonious_2015]
--   Big data: speed!
--   Model diagnosis
--   Confidence intervals accounting for uncertainty in variances
-
+- Small clusters: need AGQ/MCMC
+- Small numbers of clusters: need finite-size corrections
+- Small data sets: singular fits, model selection
+- Ever-expanding (desired) feature matrix; downstream ecosystems
+- Big data: speed!
 
 <style>
 slides > slide { overflow: scroll; }

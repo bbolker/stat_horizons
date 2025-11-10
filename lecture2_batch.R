@@ -26,7 +26,8 @@ checkpoint <- function() {
   saveRDS(mod_list, file = file.path(odir, fn_mod))
   saveRDS(buildmer_list, file = file.path(odir, fn_buildmer))
 }
-    
+
+## utility wrapper to attach run times to objects
 fun_time <- function(FUN, ...) {
   t1 <- system.time(res <- FUN(...))
   attr(res, "time") <- t1
@@ -34,6 +35,9 @@ fun_time <- function(FUN, ...) {
 }
 
 lmer <- function(...) fun_time(lmerTest::lmer, ...)
+## doing this wrapper screws up effects::allEffects(), which is trying
+##   to evaluate data from the call element
+## buildmer <- function(...) fun_time(buildmer::buildmer, ...)
 glmmTMB <- function(...) fun_time(glmmTMB::glmmTMB, ...)
 tconfint <- function(...) fun_time(confint, ...)
 

@@ -1,5 +1,6 @@
 ---
-title: live coding (lecture 2/3)
+title: live coding (lecture 2)
+date: 18 November 2025
 bibliography: glmm.bib
 csl: apa.csl
 output:
@@ -36,20 +37,10 @@ buildmer_list <- readRDS("outputs/buildmer.rds")
 attach(buildmer_list)
 confint_list <- readRDS("outputs/confint.rds")
 attach(confint_list)
-fn_mod <- "outputs/mod_list.rds"
 confint_tidy <- readRDS("outputs/confint_tidy.rds")
 ```
 
-```{r load_data, include = FALSE, echo = FALSE, eval = FALSE}
-if (file.exists(fn_mod)) {
-  mod_list <- readRDS(fn_mod)
-  ## FIXME: restore buildmer fits here as well
-  invisible(list2env(mod_list, environment())) ## unpack
-  buildmer_list <- readRDS("outputs/buildmer.rds")
-  invisible(list2env(buildmer_list, environment())) ## unpack
-}
-```
-
+(These time-consuming fits etc. are actually done using `lecture2_batch.R`)
 
 ## introduction to the example
 
@@ -83,7 +74,7 @@ Draw figures: `ggplot` is particular good for its flexibility &mdash; you can ea
 
 Competitors with similar capabilities include `tinyplot` (R): `plotnine`, `seaborn` (Python); `gadfly`, `AlgebraOfGraphic` (Julia), but `ggplot` is mature (e.g. see [ggplot extensions gallery](https://exts.ggplot2.tidyverse.org/gallery/))
 
-```{r ggplot0, warning = FALSE}
+```{r ggplot0, warning = FALSE, message = FALSE}
 gg0 <- ggplot(dd, aes(NPP_log_sc, mbirds_log, colour = biome, shape = flor_realms)) +
   geom_point() +
   geom_smooth(method = "lm", aes(group = biome_FR), alpha = 0.1)
@@ -103,7 +94,7 @@ With pop-up tooltips (nice for identifying points interactively):
 ggplotly(gg2)
 ```
 
-(`ggplotly` might not be supported long-term (??), try out `ggiraph` ?)
+(could also try out `ggiraph` for this?)
 
 # model fitting
 
@@ -127,6 +118,7 @@ Fit the model and take a first glance at the RE covariance matrix:
 ```{r fit_full, eval = FALSE}
 m_full <- lmer(form, data = dd)
 ```
+(about 10 seconds)
 
 ```{r varcor_full}
 VarCorr(m_full)
@@ -143,11 +135,15 @@ max_form <- sprintf("(%s)^4 + ((%s)^2 | biome) + ((%s)^2 | flor_realms) + ((%s)^
 max_form2 <- reformulate(max_form, response = "mbirds_log")
 ```
 
-Fit the ridiculously full model (use `calc.derivs=FALSE`)
+Fit the ridiculously full model (use `calc.derivs=FALSE` to skip gradient/Hessian checking, speeding things up)
 
 ```{r fit_fullmax, eval = FALSE}
 m_fullmax <- lmer(max_form2, data = dd, control = lmerControl(calc.derivs = FALSE))
 ```
+
+(this model takes about 100 minutes to fit ...)
+
+## buildmer
 
 Trying out the `buildmer` package to automatically reduce the model:
 
@@ -155,9 +151,9 @@ Trying out the `buildmer` package to automatically reduce the model:
 m_buildmer <- buildmer(form, data = dd)
 ```
 
-Decides on intercepts only at each stage. Unfortunately it also does model selection on the fixed effects, which I **strongly** disagree with (for philosophy about model selection/averaging see @bolkerMultimodel2024a)
+Decides on intercepts only at each stage. Unfortunately it also does model selection on the fixed effects by default, which I **strongly** disagree with (for philosophy about model selection/averaging see @bolkerMultimodel2024a)
 
-Force `buildmer` to keep all of the fixed-effect terms:
+Use `include` to force `buildmer` to keep all of the fixed-effect terms:
 
 ```{r fit_buildmer2, eval = FALSE}
 m_buildmer_fix <- buildmer(form, data = dd,
@@ -174,11 +170,11 @@ the (independent) predictor effects were included at the
 realm level, with mean- diversity effects at the biome and
 biome/realm levels.
 
-In @moritzrole2023a, we fitted all combinations of [intercept-only, diagonal, full] at each level: 3 choices at three higher levels → 81 sub-models to fit. We chose the *minimum-AIC*, *non-singular* model, which corresponded to a diagonal covariance matrix at the (biome×realm) level and intercepts only at the other two levels:
+In @moritzrole2023a, we fitted all combinations of [intercept-only, diagonal, full] at each level [biome, realm, biome × realm]: 3 choices at each of three hierarchical levels → 81 sub-models to fit. We chose the *minimum-AIC*, *non-singular* model, which turned out to be a diagonal covariance matrix at the (biome×realm) level and intercepts only at the other two levels:
 
 ```{r moritz_full}
 form2 <- mbirds_log ~ (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
-  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc || biome_FR) +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc || biome_FR) +
   (1 | biome) +
   (1 | flor_realms)
 ```
@@ -204,6 +200,7 @@ sapply(VarCorr(m_full), det)
 All three terms are singular (determinant $\ll 1$), so let's replace them all with diagonal versions:
 
 ```{r kliegl1}
+## string-processing a formula is usually a no-no but I'm in a hurry ...
 form_diag <- as.formula(gsub("|", "||", deparse1(form), fixed = TRUE))
 m_kliegl1 <- lmer(form_diag, data = dd)
 ## use internal machinery for brevity
@@ -228,6 +225,8 @@ form_kliegl3 <- as.formula(gsub("||", "|", deparse1(form_kliegl2), fixed = TRUE)
 m_kliegl3 <- lmer(form_kliegl3, data = dd)
 sapply(VarCorr(m_kliegl3), det)
 ```
+
+## reduced-rank model
 
 ```{r kliegl4, eval = FALSE}
 form_kliegl4 <- mbirds_log ~
@@ -259,29 +258,26 @@ saveRDS(tibble::lst(m_buildmer, m_buildmer_fix),
 ## check_model
 
 ```{r diag1, fig.height=10, fig.width=7}
-performance::check_model(m_buildmer_fix_mod)
+performance::check_model(m_moritz)
 ```
-
 
 ## DHARMa
 
-
 ```{r dharma1, fig.height = 6, fig.width = 10}
-pp1 <- DHARMa::simulateResiduals(m_buildmer_fix_mod)
-pp2 <- DHARMa::simulateResiduals(m_buildmer_fix_mod, use.u = TRUE)
+pp1 <- DHARMa::simulateResiduals(m_moritz)
+## plot(pp1)
+pp2 <- DHARMa::simulateResiduals(m_moritz, use.u = TRUE)
 plot(pp2)
 ```
 
-## check_model (buildmer model)
+It can be useful to plot against particular covariates, and to turn off the automatic scaling/ranking:
 
-```{r cm2, fig.height=10, fig.width=7}
-performance::check_model(m_buildmer_fix_mod)
+```{r dplot2}
+plotResiduals(pp1, form = dd$NPP_log_sc)
 ```
 
-## DHARMa (buildmer model)
-
-```{r diag2, fig.height = 6, fig.width = 10}
-plot(simulateResiduals(m_buildmer_fix_mod))
+```{r dplot3}
+plotResiduals(pp1, form = dd$NPP_log_sc, rank = FALSE)
 ```
 
 # model comparison
@@ -355,6 +351,14 @@ ggplot(confint_tidy, aes(xmin = lwr, xmax = upr, y = term, colour = method)) +
   geom_linerange(position = position_dodge(width = 0.75)) +
   geom_vline(lty = 2, xintercept = 0) +
   facet_wrap(~effect, scale = "free")
+```
+
+## Plotting random effects
+
+'caterpillar plots'
+
+```{r ranef, fig.width = 12, fig.height = 10}
+cowplot::plot_grid(plotlist = lattice::dotplot(ranef(m_moritz)))
 ```
 
 ## Effects plots

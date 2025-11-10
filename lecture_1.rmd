@@ -24,6 +24,8 @@ header-includes:
 - \newcommand{\bEta}{\boldsymbol \eta}
 - \newcommand{\btheta}{\boldsymbol \theta}
 - \newcommand{\bzero}{\boldsymbol 0}
+- \newcommand{\lik}{\mathcal L}
+
 ---
 
 \newcommand{\bm}[1]{#1}
@@ -287,6 +289,20 @@ pp <- plotfun(j.red2,m.acr.nofr,drop.cols=c(4,8))
 pp + labs(subtitle = "J.-S. White, unpublished")
 ```
 
+## Sleep deprivation study
+
+@belenkyPatterns2003
+
+```{r sleepstudy}
+data("sleepstudy", package = "lme4")
+ggplot(sleepstudy, aes(Days, Reaction, group =Subject)) + geom_point() + geom_line() +
+  labs(y = "Reaction time (ms)", x = "Experiment day") +
+  scale_x_continuous(breaks = seq(0, 10, by = 2)) +
+  geom_vline(xintercept =  2, lty = 2) +
+  annotate(geom = "text", x=1, y=450, label = "adaptation/\ntraining") +
+  annotate(geom = "text", x=3, y=450, label = "deprivation")
+```
+
 # Definitions and descriptions {.section}
 
 ## Simple mixed models<br>(scalar, intercept-only)
@@ -318,6 +334,14 @@ $$
 - variation in the *effect* of a treatment or covariate across groups
 - group intercept, slope offsets are correlated
 
+## Terminology
+
+- **grouping variables** define sets of clusters (e.g. school, year, country ...)
+- **varying effects** are predictors whose effects that vary across clusters (e.g. intercept, herbivory, time)
+- a random effects **term** is the combination of a clustering variable and a set of varying effects
+- a **conditional mode** is the predicted value of the *difference* of a cluster effect from the population mean (slope difference of a subject) (also "BLUPs")
+- the **conditional distribution** is the probability distribution of the conditional modes (Gaussian for LMMs, or Poisson, Beta, Tweedie, ...)
+
 ## General definition
 
 $$
@@ -337,24 +361,23 @@ $$
 
 A method for …
 
--   accounting for among-individual, within-block correlation
--   compromising between\
-    *complete pooling* (no among-block variance)\
-     and *fixed effects* (large among-block variance)
+- accounting for among-individual variation, within-cluster correlation
+- compromising between\
+    *complete pooling* (no among-cluster variance)\
+     and *fixed effects* (large among-cluster variance)
 -   handling levels selected at random from a larger population
--   sharing information among levels (*shrinkage
-    estimation*)
--   estimating variability among levels
--   allowing predictions for unmeasured levels
+- sharing information among clusters (*shrinkage estimation*)
+- estimating among-cluster variability
+- allowing predictions for unobserved clusters
+- modeling **exchangeable** groups
 
 ## Random-effect myths
 
--   levels of random effects must always be sampled at random
--   a complete sample cannot be treated as a random effect
--   random effects are always a *nuisance variable*
--   nothing can be said about the predictions of a random effect
--   you should always use a random effect no matter how few levels you
-have
+- clusters must always be sampled at random
+- a complete sample cannot be treated as a random effect
+- random effects are always a *nuisance variable*
+- nothing can be said about the predictions of a random effect
+- you should always use a random effect no matter how few clusters you have
 
 ## Reasons for random effects (inferential/philosophical)
 
@@ -380,17 +403,18 @@ See also @Crawley2002; @gelman_analysis_2005
 
 * average: for *nested* (balanced) LMMs [@murtaugh_simplicity_2007] 
 * use fixed effects (or *two-stage models*) instead of random effects when there are
-     * many observations per block (shrinkage unimportant)
-     * few blocks (little advantage; bad variance estimates)
+     * many observations per cluster (shrinkage unimportant)
+     * few clusters (little advantage; bad variance estimates)
 
 # Model setup {.section}
 
 ## Formulas
 
-- random effects specified with `|` ("pipe"/"bar") as `(a|g1) + (b|g2) + ...`
-- right-hand side is the *grouping variable* (always categorical, usually a factor)
-- left-hand side is the *varying term* (most often 1)
-- terms separated by `+` are independent
+- random effects specified with `|` ("pipe"/"bar")  
+as `(1+a|g1) + (1+b|g2) + ...`
+- right-hand side (`g1`, `g2`) is the *grouping variable* (always treated as categorical, usually a factor)
+- left-hand side describes the *varying terms* (`1` [intercept], `a`, `b`)
+- `+` separates independent terms
 - formulas: empower but conceal details [@mcelreath_statistical_2015]
 
 ## Formula definitions {.smalltab}
@@ -425,12 +449,12 @@ Modified from: http://stats.stackexchange.com/questions/13166/rs-lmer-cheat-shee
 ## Nesting vs crossing
 
 Nested: sub-unit IDs only measured within a single larger unit.
-e.g.: Plot1 in Block1 independent of Plot1 in Block2
+e.g.: Class1 in School1 independent of Class1 in School2
 
 ![](pix/CV_nested.png)
 
 Crossed: sub-unit IDs can be measured in multiple larger units.
-e.g. year, site
+e.g. 
 
 ![](pix/CV_crossed.png)
 
@@ -462,12 +486,12 @@ plotfun(fit)
 
 ## example covariance matrices
 
-* 10 groups, 5 obs/group, effects/group
+* 10 groups, 5 obs/group, 3 effects/group
 
-```{r plotcov2}
-fit2 <- simfun(c(10, 1), c(2,1), 3,
+```{r plotcov2, message=FALSE}
+fit2 <- simfun(c(10, 1), c(3,1), 3,
        y ~ 1 + (v|g),
-       list(beta = 1, theta = c(2,2,2), sigma = 1))
+       list(beta = 1, theta = c(2,1,1,2,1,0.1), sigma = 1))
 plotfun(fit2)
 ```
 
@@ -475,7 +499,7 @@ plotfun(fit2)
 
 * 5 groups, 2 effects (v1) × 5 groups, 1 effect (v1)
 
-```{r plotcov3}
+```{r plotcov3, message=FALSE}
 fit3 <- simfun(c(5, 5), c(2, 1), 3,
        y ~ 1 + (v|g) + (1|g2),
        list(beta = 1, theta = c(1,1,1,1), sigma = 1))
@@ -517,27 +541,43 @@ $$
 
 - Which effects vary *within* which groups?
 - If effects don't vary within groups, then we *can't* estimate among-group variation in the effect
+     - e.g. in typical clinical trials each patient gets only one treatment (placebo or drug)
      - convenient
      - maybe less powerful (among-group variation is lumped into residual variation)
+	 - can't evaluate variation in effects
 
-## The maximal model is often too complex
+## Maximal model is often impractical
 
 - for a RE where $n$ effects vary across clusters we need to estimate $p = n(n+1)/2$ covariance parameters
 - e.g. bloodworm example: 5×4×4×2 factorial design (160 combinations), all measured in each of 10 individuals. 
-    - Treating covariates as numeric, allow all interactions: 16 effects → $p=136$
-    - Categorical predictors, no interactions: 12 effects → $p=78$
+    - Treating covariates as numeric, allow all interactions:  
+	16 effects → $p=136$
+    - Categorical predictors, no interactions:  
+	12 effects → $p=78$
     - Numeric predictors, no interactions: 4 effects → $p=10$
-- ignoring within-cluster effects is also dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022]
+- **BUT** ignoring within-cluster effects is also dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022] (!)
 
 
 # Estimation {.section}
 
 ## Maximum likelihood estimation
 
--   Best fit is a compromise between two components\
-    (consistency of data with fixed effects and conditional modes;
-    consistency of random effect with RE distribution)
-	-   Goodness-of-fit *integrates* over conditional modes
+-   Best fit is a compromise between
+  * consistency of data with fixed effects + conditional modes
+  * consistency of random effect with RE distribution
+- Goodness-of-fit *integrates* over the RE distribution
+
+$$
+\lik(x|\beta,\theta) = \iint \lik(x|\beta,\bb) \cdot \lik(\bb|\Sigma(\theta)) \, d \bb
+$$
+
+## Restricted maximum likelihood (REML)
+
+- factor out fixed effects when estimating variances
+- analogous to estimating $s^2 = \frac{\textrm{SSQ}}{n-1}$ rather than $\frac{\textrm{SSQ}}{n}$
+- typically better variance estimates (unbiased in simple cases)
+- defaults differ across packages
+- **never** compare models with differing fixed effects fitted by REML ![](pix/skullcross_tiny.png)
 
 ## Shrinkage
 
@@ -567,7 +607,7 @@ ggplot(dds, aes(g, y, colour = trt)) +
   theme(legend.position = "none")
 ```
 
-## *Arabidopsis* conditional modes
+## *Arabidopsis* shrinkage
 
 ```{r arabshrink,fig.height=6,fig.width=8}
 z<- subset(dat.tf,amd=="clipped" & nutrient=="1")
@@ -610,11 +650,38 @@ legend("bottomright",
 par(op)
 ```
 
-## Shrinkage in a random-slopes model
+## Shrinkage in the sleep-study model
 
-From Christophe Lalanne, see [here](https://stats.stackexchange.com/questions/51186/what-would-be-an-illustrative-picture-for-linear-mixed-models):
+```{r shrink_ss, echo = FALSE, fig.width = 10, fig.height = 5}
+fm1 <- lmer(Reaction ~ Days + (1+Days|Subject), sleepstudy)
+sleepstudy$predy <- predict(fm1)
+gg_spaghetti <- ggplot(sleepstudy, aes(Days, Reaction, colour =Subject)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se=FALSE, lty=2, formula = y~x) +
+  colorspace::scale_colour_discrete_qualitative() +
+  geom_line(aes(y = predy), lty = 1) +
+  labs(y = "Reaction time (ms)", x = "Experiment day") +
+  scale_x_continuous(breaks = seq(0, 10, by = 2))
+cfun <- function(x) { as.data.frame(x) |>
+                        setNames(c("intercept", "slope")) |>
+                        tibble::rownames_to_column("Subject") |>
+                        as_tibble()
+}
+dd1 <- cfun(coef(fm1)$Subject)
+dd2 <- cfun(coef(lmList(Reaction ~ Days | Subject, sleepstudy)))
+dd12 <- dplyr::bind_rows(list(fixed=dd2, random = dd1), .id = "method")
+dd3 <- dplyr::full_join(dd1, dd2, by = "Subject")
+pm <- colMeans(as.matrix(dd2[,-1]))
+gg_shrink <- ggplot(dd12, aes(intercept, slope)) + geom_point(aes(colour = method), size = 5) +
+  geom_segment(data = dd3, aes(x = intercept.y, xend = intercept.x,
+                               y = slope.y, yend = slope.x), arrow = grid::arrow(length = grid::unit(0.03, "npc"))) +
+  annotate(geom = "point", x = pm[["intercept"]], y = pm[["slope"]], size = 5, stroke = 3, pch = 3)
+cowplot::plot_grid(gg_spaghetti, gg_shrink)
+```
 
-```{r sleepstudy_shrinkage, echo=FALSE}
+```{r sleepstudy_shrinkage, echo=FALSE, eval = FALSE}
+# From Christophe Lalanne, see [here](https://stats.stackexchange.com/questions/51186/what-would-be-an-illustrative-picture-for-linear-mixed-models):
+
 library(lme4)
 data(sleepstudy)
 
@@ -659,15 +726,16 @@ xyplot(Reaction ~ Days, data=sleepstudy,
 
 ## Estimation methods
 
-- deterministic
-    - various approximate integrals [@breslow_whither_2004]
-    - penalized quasi-likelihood, Laplace, Gauss-Hermite quadrature, … [@biswas2015; @bilodeauStochastic2024];  
-best methods needed for large variance, small clusters
-    -   flexibility and speed vs. accuracy
-- stochastic
-- stochastic (Monte Carlo): frequentist and (mostly) Bayesian
-    - [@booth_maximizing_1999; @gelman_data_2006; @sung_monte_2007; @ponciano_hierarchical_2009; @mcelreath_statistical_2015; ]
-    - slower but flexible and accurate
+Integrating the likelihood is hard for GLMMs
+
+- deterministic approximations:
+    - penalized quasi-likelihood [@breslow_whither_2004], Laplace, Gauss-Hermite quadrature, … [@biswas2015; @bilodeauStochastic2024]
+	- best methods needed for small clusters
+	- available methods depend on problem structure
+    - accuracy (GHQ) vs. flexibility and speed (Laplace, PQL)
+- stochastic approximations (Monte Carlo): mostly Bayesian, some frequentist
+    - @booth_maximizing_1999; @gelman_data_2006; @sung_monte_2007; @ponciano_hierarchical_2009; @mcelreath_statistical_2015
+    - much slower, but flexible and accurate
 
 ## Estimation: *Arabidopsis*
 
@@ -676,58 +744,29 @@ tt <- readRDS("outputs/banta_fits1.rds")
 tt |> filter(is.na(effect) | effect == "fixed") |>
   ggplot(aes(estimate, term, colour = method)) +
   geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
-                  position = position_dodge(width = 0.25)) +
+                  position = position_dodge(width = 0.25, reverse = TRUE)) +
   geom_vline(xintercept = 0, lty = 2)
 ```
 
-# Inference {.section}
+# Inference/post-fitting {.section}
 
-## Wald tests
+## Diagnostics
 
--   typical results of `summary()`
--   exact for ANOVA, regression:  
-approximation for GLM(M)s
--   fast
--   approximation is sometimes awful (Hauck-Donner effect)
+* make sure model is working OK (**singular fits** etc.)
+* check model assumptions
+    * generalizations of linear/GLM diagnostics: residuals vs fitted, scale-location, etc.
+	* conditional modes should be Normally distributed
+	* simulation-based checking (`DHARMa`)
 
-## Likelihood ratio tests
+## Parameter/model interpretation
 
--   better than Wald, but still have two problems:
--   “denominator degrees of freedom”  
-(when estimating scale)
-    -   finite-size issues for GLM(M)s: Bartlett corrections
-    -   Kenward-Roger correction? [@stroup_rethinking_2014]
--   Profile confidence intervals: expensive/fragile
-
-## Finite-size corrections
-
-- hope that min grps > 42
-- guess denominator DF from classic design ([R code](R/calcDenDF.R))
-- conservative: take minimum number of groups - 1
-- Satterthwaite/Kenward-Roger (`lmerTest`, LMMs only)
-- parametric bootstrap (`pbkrtest`)
-
-## Parametric bootstrapping
-
--   fit null model to data
--   simulate “data” from null model
--   fit null and working model, compute likelihood difference
--   repeat to estimate null distribution
--   should be OK but ??? not well tested  
-(assumes estimated parameters are "sufficiently" good)
-
-## Bayesian inference
-
--   If we have a good sample from the posterior distribution (Markov chains have converged etc. etc.) we get most of the inferences we want for free by summarizing the marginal posteriors
--   *post hoc* Bayesian methods: use deterministic/frequentist methods to find the maximum, then sample around it
-
-## 'Old' and 'new' random effects 
-
-* @hodges_richly_2016
-* are random effects/latent variables modeling exchangeable groups ...
-* ... or spatial/temporal/functional structure? [@wood_generalized_2017]
-* prediction/inference: population level or the cluster level [@vaida_conditional_2005] ?
-* counting parametes?
+* fixed effects: same as linear models (population level trends/effects)
+* conditional modes/group-level effects
+	* deviations from population-level effects
+    * can get *conditional standard deviations*, but can't test significance!
+* interpreting random effects
+    * standard deviations (on same scale as corresponding fixed effects)
+	* variances (for population geneticists)
 
 <style>
 slides > slide { overflow: scroll; }
