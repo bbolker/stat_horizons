@@ -1,0 +1,376 @@
+---
+title: live coding (lecture 2)
+date: 18 November 2025
+bibliography: glmm.bib
+csl: apa.csl
+output:
+  html_document:
+    self-contained: true
+    toc: true
+## params:
+##  EVAL: !r identical(Sys.getenv("FIT_MODELS"), "true")
+---
+
+```{r load_pkgs, message = FALSE}
+library(ggplot2); theme_set(theme_bw())
+## requires ggplot2 version >= 4.0.0
+library(lme4)
+library(glmmTMB)
+library(lmerTest)
+library(ggplot2)
+library(tidyverse)
+library(plotly)
+library(buildmer)
+library(broom.mixed)
+library(bbmle)
+library(DHARMa)
+library(effects)
+```
+
+You may want to get previously fitted models (this uses the much-maligned `attach()` function)
+
+```{r get_data}
+dd <- readRDS("data/ecoreg.rds")
+mod_list <- readRDS("outputs/mod_list.rds")
+attach(mod_list)
+buildmer_list <- readRDS("outputs/buildmer.rds")
+attach(buildmer_list)
+confint_list <- readRDS("outputs/confint.rds")
+attach(confint_list)
+confint_tidy <- readRDS("outputs/confint_tidy.rds")
+```
+
+(These time-consuming fits etc. are actually done using `lecture2_batch.R`)
+
+## introduction to the example
+
+From @moritzrole2023a: `r nrow(dd)` global observations
+
+```{r fig1, echo = FALSE}
+knitr::include_graphics("pix/fire_fig1.png")
+```
+
+Sampling locations/ecoregions:
+
+```{r sampling}
+par(las=1, bty = "l")
+plot(y ~ x, data = dd, xlab = "longitude", ylab = "latitude")
+```
+
+(not bothering to do a proper projection, land boundaries etc.)
+
+## exploration
+
+```{r read_data}
+dd <- readRDS("data/ecoreg.rds")
+```
+
+Draw figures: `ggplot` is particular good for its flexibility &mdash; you can easily switch the way you incorporate different predictors (as facets, colours, etc.).
+
+* plot high-dimensional data using all possible mappings - x/y position, colour, shape, line type, plus facets ("small multiples à la Tufte)
+* flexibility to switch among different views of the data on the fly
+* overlay some kinds of summary statistics/summaries on the fly (means, regression lines etc.)
+* tools for grouping (by facet, with `geom_ellipse` or `ggalt::geom_encircle()` ...)
+
+Competitors with similar capabilities include `tinyplot` (R): `plotnine`, `seaborn` (Python); `gadfly`, `AlgebraOfGraphic` (Julia), but `ggplot` is mature (e.g. see [ggplot extensions gallery](https://exts.ggplot2.tidyverse.org/gallery/))
+
+```{r ggplot0, warning = FALSE, message = FALSE}
+gg0 <- ggplot(dd, aes(NPP_log_sc, mbirds_log, colour = biome, shape = flor_realms)) +
+  geom_point() +
+  geom_smooth(method = "lm", aes(group = biome_FR), alpha = 0.1)
+print(gg0)
+```
+
+Organize plots by biome or floristic realm:
+
+```{r plot1}
+gg1 <- gg0 + facet_wrap(~biome)
+gg2 <- gg0 + facet_wrap(~flor_realms)
+```
+
+With pop-up tooltips (nice for identifying points interactively):
+
+```{r ggplotly, eval = FALSE}
+ggplotly(gg2)
+```
+
+(could also try out `ggiraph` for this?)
+
+# model fitting
+
+### full model
+
+This is the full model used in @moritzrole2023a. The fixed effects include all two-way interactions between the covariates of interest (NPP, Fire, annual coefficients of variation of each, all appropriately scaled and/or log-transformed). Random effects include main effects only, varying at the three levels of realms (e.g. "Afrotropics", biomes (e.g. "Tropical grassland"), and their interaction (e.g. "Tropical grasslands in the Afrotropics"). We didn't even try to fit interactions; these covariance matrices are already 5x5 (15 parameters each ...)
+
+I actually used text manipulation to set up the formula, so I could build lots of variations on the model. This makes the code more compact and reproducible (less cutting and pasting), at the expense of transparency. 
+
+Here I'm analyzing just the bird data (`mbirds_log`); for the paper we analyzed diversity of birds, mammals and amphibians separately.
+
+```{r full_form}
+form <- mbirds_log ~ (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | biome) +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | flor_realms) +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | biome_FR)
+```
+
+Fit the model and take a first glance at the RE covariance matrix:
+
+```{r fit_full, eval = FALSE}
+m_full <- lmer(form, data = dd)
+```
+(about 10 seconds)
+
+```{r varcor_full}
+VarCorr(m_full)
+```
+
+An example of text manipulation, used to illustrate *more* maximal models (4-way interactions in the fixed effects, two-way interactions in the random effects terms)
+
+```{r}
+vars <- c("NPP_log_sc", "Feat_log_sc", "NPP_cv_sc", "Feat_cv_sc")
+all_vars <- paste(vars, collapse = "+")
+
+max_form <- sprintf("(%s)^4 + ((%s)^2 | biome) + ((%s)^2 | flor_realms) + ((%s)^2 | biome_FR)",
+                    all_vars, all_vars, all_vars, all_vars)
+max_form2 <- reformulate(max_form, response = "mbirds_log")
+```
+
+Fit the ridiculously full model (use `calc.derivs=FALSE` to skip gradient/Hessian checking, speeding things up)
+
+```{r fit_fullmax, eval = FALSE}
+m_fullmax <- lmer(max_form2, data = dd, control = lmerControl(calc.derivs = FALSE))
+```
+
+(this model takes about 100 minutes to fit ...)
+
+## buildmer
+
+Trying out the `buildmer` package to automatically reduce the model:
+
+```{r fit_buildmer1, results = "hide", eval = FALSE}
+m_buildmer <- buildmer(form, data = dd)
+```
+
+Decides on intercepts only at each stage. Unfortunately it also does model selection on the fixed effects by default, which I **strongly** disagree with (for philosophy about model selection/averaging see @bolkerMultimodel2024a)
+
+Use `include` to force `buildmer` to keep all of the fixed-effect terms:
+
+```{r fit_buildmer2, eval = FALSE}
+m_buildmer_fix <- buildmer(form, data = dd,
+                           buildmerControl =
+                             buildmerControl(
+                               include= ~(NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2))
+```
+
+For birds and amphibians, the selected model included
+independent effects of the predictors at the biome/realm
+interaction level and intercept-only (mean diversity)
+variation at the biome and realm levels; for mammals,
+the (independent) predictor effects were included at the
+realm level, with mean- diversity effects at the biome and
+biome/realm levels.
+
+In @moritzrole2023a, we fitted all combinations of [intercept-only, diagonal, full] at each level [biome, realm, biome × realm]: 3 choices at each of three hierarchical levels → 81 sub-models to fit. We chose the *minimum-AIC*, *non-singular* model, which turned out to be a diagonal covariance matrix at the (biome×realm) level and intercepts only at the other two levels:
+
+```{r moritz_full}
+form2 <- mbirds_log ~ (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc || biome_FR) +
+  (1 | biome) +
+  (1 | flor_realms)
+```
+
+```{r moritz_full_fit}
+m_moritz <- lmer(form2, data = dd)
+```
+
+For comparison, let's try this in `glmmTMB` as well:
+
+```{r glmmTMB, eval = FALSE}
+m_glmmTMB <- glmmTMB(form2, data = dd, REML = TRUE)
+```
+
+## Kliegl method
+
+Check the individual `VarCorr` terms:
+
+```{r sing_terms}
+sapply(VarCorr(m_full), det)
+```
+
+All three terms are singular (determinant $\ll 1$), so let's replace them all with diagonal versions:
+
+```{r kliegl1}
+## string-processing a formula is usually a no-no but I'm in a hurry ...
+form_diag <- as.formula(gsub("|", "||", deparse1(form), fixed = TRUE))
+m_kliegl1 <- lmer(form_diag, data = dd)
+## use internal machinery for brevity
+lme4:::.prt.VC(VarCorr(m_kliegl1), digits = 3)
+```
+This suggests we should drop `NPP_cv_sc` from the `flor_realms` term; `NPP_cv_sc` and `Feat_log_sc` from `biome`; and keep all terms for `biome_FR`
+
+```{r kliegl2}
+form_kliegl2 <- mbirds_log ~
+  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  (1 + NPP_log_sc + Feat_cv_sc || biome) +
+  (1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc || flor_realms) +
+  (1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc || biome_FR)
+m_kliegl2 <- lmer(form_kliegl2, data = dd)
+isSingular(m_kliegl2)
+```
+
+Can we get away with full covariances once we drop these terms?
+
+```{r kliegl3}
+form_kliegl3 <- as.formula(gsub("||", "|", deparse1(form_kliegl2), fixed = TRUE))
+m_kliegl3 <- lmer(form_kliegl3, data = dd)
+sapply(VarCorr(m_kliegl3), det)
+```
+
+## reduced-rank model
+
+```{r kliegl4, eval = FALSE}
+form_kliegl4 <- mbirds_log ~
+  (NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc)^2 +
+  rr(1 + NPP_log_sc + Feat_cv_sc | biome, d=2) +
+  rr(1 + NPP_log_sc + Feat_log_sc + Feat_cv_sc | flor_realms, d=3) +
+  rr(1 + NPP_log_sc + Feat_log_sc + NPP_cv_sc + Feat_cv_sc | biome_FR, d=4)
+m_kliegl4 <- glmmTMB(form_kliegl4, dd, REML=TRUE)
+```
+
+```{r mod_list}
+mod_list <- tibble::lst(m_moritz, m_full, m_fullmax,
+                        m_kliegl4,
+                        m_buildmer_mod = m_buildmer@model,
+                        m_buildmer_fix_mod = m_buildmer_fix@model,
+                        m_glmmTMB)
+```
+
+```{r save_mod_list}
+odir <- "outputs"
+if (!dir.exists(odir)) dir.create(odir)
+saveRDS(mod_list, file = file.path(odir, "mod_list.rds"))
+saveRDS(tibble::lst(m_buildmer, m_buildmer_fix),
+        file = file.path(odir, "buildmer.rds"))
+```
+
+# diagnostics
+
+## check_model
+
+```{r diag1, fig.height=10, fig.width=7}
+performance::check_model(m_moritz)
+```
+
+## DHARMa
+
+```{r dharma1, fig.height = 6, fig.width = 10}
+pp1 <- DHARMa::simulateResiduals(m_moritz)
+## plot(pp1)
+pp2 <- DHARMa::simulateResiduals(m_moritz, use.u = TRUE)
+plot(pp2)
+```
+
+It can be useful to plot against particular covariates, and to turn off the automatic scaling/ranking:
+
+```{r dplot2}
+plotResiduals(pp1, form = dd$NPP_log_sc)
+```
+
+```{r dplot3}
+plotResiduals(pp1, form = dd$NPP_log_sc, rank = FALSE)
+```
+
+# model comparison
+
+```{r AIC}
+bbmle::AICtab(mod_list)
+```
+
+```{r cAIC, eval = FALSE, echo = FALSE}
+## skip ????
+cAIC_list <- lapply(mod_list, cAIC)
+cAIC_vec <- sapply(cAIC_list, \(x) x$caic)
+cAIC_vec - min(cAIC_vec)
+## run cAIC on full set of fitted models??
+## 'full' and 'crazy' are automatically refitted with a subset ... rabbit hole ...
+```
+
+# plotting (coefficient, effects plots)
+
+Downstream processing (contrasts, marginal effects, plotting, etc.): `effects`, `broom.mixed`, `sjPlot`, `marginaleffects`, `ggeffects`, `emmeans` (see [Mixed Models Task View](https://cran.r-project.org/web/views/MixedModels.html))
+
+## coefficient plots (comparing models)
+
+You **must** (??) decide on a model before comparing parameter estimates &mdash; this step is for understanding sensitivity, not for choosing which model to use.
+
+```{r coefplot, fig.width = 12}
+tt <-  mod_list |>
+  purrr::map_dfr(tidy, effects = "fixed", .id = "model", conf.int = TRUE) |>
+  filter(term != "(Intercept)")
+
+gg_coef <- ggplot(tt, aes(estimate, term, colour = model)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                  position = position_dodge(width = 0.75)) +
+  geom_vline(xintercept = 0, lty = 2) +
+  labs(y = "")
+print(gg_coef)
+```
+
+Drop "fullmax" model:
+
+```{r coefplot2, fig.width = 10}
+mod_list2 <- mod_list[names(mod_list) != "m_fullmax"]
+tt2 <-  mod_list2 |>
+  purrr::map_dfr(tidy, effects = "fixed", .id = "model", conf.int = TRUE) |>
+  filter(term != "(Intercept)")
+
+print(gg_coef + tt2)
+```
+
+## coefficient plots (comparing CI approximations)
+
+```{r ci_vals, eval  = FALSE}
+ci_wald <- confint(m_moritz, method = "Wald", signames = FALSE)
+ci_profile <- confint(m_moritz, method = "profile", signames = FALSE)
+ci_boot <- confint(m_moritz, method = "boot", nsim = 1000, parallel = "multicore", ncpus = 6, signames = FALSE)
+confint_list <- tibble::lst(ci_wald, ci_profile, ci_boot)
+```
+
+```{r get_ci_tidy, eval = FALSE}
+confint_tidy <- confint_list |>
+  map(as.data.frame) |>
+  map(~rownames_to_column(., var = "term")) |>
+  bind_rows(.id = "method") |>
+  mutate(effect = ifelse(grepl("^(sd|cor|sigma)", term), "random", "fixed")) |>
+  rename(lwr = "2.5 %", upr = "97.5 %") |>
+  filter(term != "(Intercept)")
+```
+
+```{r confint_comp, fig.width = 14, fig.height = 8, warning = FALSE}
+ggplot(confint_tidy, aes(xmin = lwr, xmax = upr, y = term, colour = method)) +
+  geom_linerange(position = position_dodge(width = 0.75)) +
+  geom_vline(lty = 2, xintercept = 0) +
+  facet_wrap(~effect, scale = "free")
+```
+
+## Plotting random effects
+
+'caterpillar plots'
+
+```{r ranef, fig.width = 12, fig.height = 10}
+cowplot::plot_grid(plotlist = lattice::dotplot(ranef(m_moritz)))
+```
+
+## Effects plots
+
+Effects plots, with *partial residuals* (also see the `remef` package, [on GitHub](https://github.com/hohenstein/remef)).
+
+For conditional and marginal predictions/effects plots, see also `emmeans`/`sjPlot`/`ggeffects`/`marginaleffects` packages ...
+
+```{r effects, fig.width = 10, fig.height = 8}
+plot(allEffects(m_buildmer_fix_mod, partial.residuals = TRUE))
+```
+
+Would like to try `marginaleffects` but struggling ...
+
+# References
