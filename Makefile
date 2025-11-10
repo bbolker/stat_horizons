@@ -1,4 +1,4 @@
-ALL: docs/lecture_1.html docs/lecture_2.html docs/lecture_3.html docs/lecture_2.pdf docs/index.html
+ALL: docs/lecture_1.html docs/lecture_2.html docs/lecture_3.html docs/lecture_2.pdf docs/index.html docs/install_pkgs.R
 
 .SECONDARY:
 
@@ -7,6 +7,9 @@ Rcb = R CMD BATCH --vanilla
 docs/lecture_2.pdf: lecture_2.rmd ./glmm.bib
 	Rscript -e "rmarkdown::render('lecture_2.rmd', output_format = 'pdf_document')"
 	mv lecture_2.pdf docs
+
+docs/%.R: %.R
+	cp $< $@
 
 docs/%.pdf: docs/%.html
 	chromium --headless --print-to-pdf=$@ $<

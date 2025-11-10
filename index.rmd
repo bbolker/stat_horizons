@@ -1,7 +1,9 @@
 ---
-title: Statistical Horizons material
+title: Statistical Horizons
 author: Ben Bolker
 ---
+
+"Mixed Models in the Wild: Techniques, Workflows, and Challenges"
 
 ## Notes
 
