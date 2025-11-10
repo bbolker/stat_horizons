@@ -3,9 +3,11 @@ title: Statistical Horizons material
 author: Ben Bolker
 ---
 
-* lecture 1 ([HTML](lecture_1.html), [PDF](lecture_1.pdf)
-* lecture 2 [live coding] ([HTML](lecture_2.html), [PDF](lecture_2.pdf)
-* lecture 3 ([HTML](lecture_3.html), [PDF](lecture_3.pdf)
+## Notes
+
+* lecture 1 ([HTML](lecture_1.html), [PDF](lecture_1.pdf))
+* lecture 2 [live coding] ([HTML](lecture_2.html), [PDF](lecture_2.pdf))
+* lecture 3 ([HTML](lecture_3.html), [PDF](lecture_3.pdf))
 
 ## setup material
 
@@ -13,3 +15,6 @@ author: Ben Bolker
 * [Rmarkdown for lecture 2](lecture_2.rmd)
 * [pre-built outputs](https://github.com/bbolker/stat_horizons/tree/main/outputs)
 * [data](https://github.com/bbolker/stat_horizons/tree/main/data) ("ecoreg.rds" is the only file you'll need for the workshop)
+
+---
+Last update: `r format(Sys.time(), "%d %b %Y")`

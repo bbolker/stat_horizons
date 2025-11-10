@@ -1,3 +1,5 @@
+
+* bibliography for GH pages?
 * heteroscedasticity?
 * more Julia timing?
 * dotplots with error bars for coef() ?
