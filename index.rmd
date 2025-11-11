@@ -5,6 +5,8 @@ author: Ben Bolker
 
 "Mixed Models in the Wild: Techniques, Workflows, and Challenges"
 
+![](pix/64px-CC_BY-SA_icon.svg.png)
+
 ## Notes
 
 * lecture 1 ([HTML](lecture_1.html), [PDF](lecture_1.pdf))
