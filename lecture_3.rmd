@@ -105,13 +105,27 @@ scale_fill_discrete <- function(...) {
 
 ## Confidence intervals/$p$-values
 
-* as with GLMM fitting, methods range from "easy, less accurate" to "computationally expensive, more accurate"
-   * Wald approximations
-   * Likelihood ratio test/Profile likelihood
-   * Bootstrap
-   * MCMC (Bayesian) ...
-* easy methods work better as number of observations *and* number of clusters grows
-* easy methods work better for fixed effects than for RE variances
+```{r inf-methods, echo=FALSE, crop = knitr::hook_pdfcrop}
+dd <- data.frame(txt = c("Wald\napproximation",
+                   "Likelihood ratio test/\nprofile CI",
+                   "Bootstrapping/\nMCMC"),
+                 x = 1:3,
+                 y = rep(1,3))
+
+dd2 <- data.frame(txt = c("fast,\ninaccurate",
+                          "slow,\naccurate"),
+                  x = c(1,3),
+                  y = rep(1.02, 2))
+ggplot(dd) + aes(x, y, label = txt) + geom_label() + lims(x=c(0,4), y=c(0.99, 1.1)) +
+  annotate(geom = "segment",
+           arrow = grid::arrow(angle = 30, length = unit(0.25, "inches"), ends = "both", type = "open"),
+           x = 1, xend = 3, y = 1.01, yend = 1.01) +
+  geom_text(data = dd2) +
+  theme_void()
+```
+
+* easy methods work better as number of observations *and* number of clusters grow
+* easy methods better for fixed effects than for RE variances
 
 ## Wald approximation: hypothesis tests
 
@@ -320,7 +334,6 @@ invisible(dev.off())
 
 ## Simplifying covariance matrices
 
-* @scandolaReliability2024a
 * Suppose factor `f` (5 levels) varies within groups `g`
 * `(1+f|g)`: $(n(n+1))/2 = (5\times 6)/2 = 15$ parameters)
 
@@ -357,7 +370,8 @@ $$
 \right]
 $$
 
-## Complex random effects
+## Complex random intercepts [@scandolaReliability2024a]
+
 
 * replace `(1+f|g)` with `(1|g/f)`
 
@@ -375,7 +389,7 @@ $$
 
 * where $\sigma^2 = \sigma^2_{f}+\sigma^2_{g}$, $\rho = \frac{\sigma^2_{g}}{\sigma^2}$
 * $\rho>0$; all variances identical
-* `cs()` (`glmmTMB`), `corCompSymm` (`nlme`)
+* *compound symmetry*: `cs()` (`glmmTMB`), `corCompSymm` (`nlme`)
 
 ## Diagonal covariance matrices
 

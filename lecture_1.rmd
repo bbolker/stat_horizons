@@ -58,6 +58,37 @@ img {
 </style>
 
 
+
+<!-- https://stackoverflow.com/questions/42690955/how-to-insert-footnotes-in-ioslides-presentations-using-rmarkdown -->
+<style>
+div.footnotes {
+  position: absolute;
+  bottom: 0;
+  margin-bottom: 10px;
+  width: 80%;
+  font-size: 0.6em;
+}
+</style>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+<script>
+  $(document).ready(function() {
+    $('slide:not(.backdrop):not(.title-slide)').append('<div class=\"footnotes\">');
+
+    $('footnote').each(function(index) {
+      var text  = $(this).html();
+      var fnNum = (index+1).toString().sup();
+      $(this).html(text + fnNum);
+
+      var footnote   = fnNum + ': ' + $(this).attr('content') + '<br/>';
+      var oldContent = $(this).parents('slide').children('div.footnotes').html();
+      var newContent = oldContent + footnote;
+      $(this).parents('slide').children('div.footnotes').html(newContent);
+    });
+  });
+</script>
+
 ```{r knitr,include=FALSE, message = FALSE}
 require("knitr")
 knit_hooks$set(crop=hook_pdfcrop)
@@ -159,13 +190,12 @@ ggplot(dds, aes(g, y)) +
 ## The mixed model universe
 
 * more complex *fixed effects* components (multivariate regression, multiway ANOVA, ANCOVA, ...)
-* multiple grouping variables (random effects *terms*)
-* multiple effects varying across groups (*random slopes models* etc.)
-* non-Normal *conditional distributions*
+* multiple grouping variables (random effects *terms*); multiple effects per group ("*random slopes*")
+* interesting *conditional distributions*
    * exponential dispersion family (à la GLMs): binomial/Poisson/etc.
    * weirder: Tweedie, $t$ distribution, Beta, ...
 * nonlinearity: *link functions* (log, logit, etc.)
-* structured covariances: autoregressive, compound symmetric, regression splines ...
+* structured covariances: autoregressive, compound symmetry, regression splines ...
 
 ##
 
@@ -278,15 +308,10 @@ stripplot(jltf ~ amd|nutrient,
 ## trellis.par.set(theme=orig) ## restore settings
 ```
 
-## Coral demography
+## Wildfire/diversity [@moritzrole2023a]
 
-```{r coral_demog,warning=FALSE}
-L <- load("data/m.acr.jagsout.RData")
-L2 <- load("data/m.acr.lme4out.RData")
-L3 <- load("data/demog.mort.18apr.RData")
-source("R/demog_mort_funs.R")
-pp <- plotfun(j.red2,m.acr.nofr,drop.cols=c(4,8))
-pp + labs(subtitle = "J.-S. White, unpublished")
+```{r fire-fig, echo = FALSE, out.height = "100%"}
+knitr::include_graphics("pix/fire_fig1.png")
 ```
 
 ## Sleep deprivation study
@@ -332,15 +357,15 @@ y_{ij} & = \beta_0 + \beta_1 x_{ij} + \epsilon_{0,ij} + \epsilon_{1,j} +
 $$
 
 - variation in the *effect* of a treatment or covariate across groups
-- group intercept, slope offsets are correlated
+- correlated variation in intercepts/slopes
 
 ## Terminology
 
 - **grouping variables** define sets of clusters (e.g. school, year, country ...)
-- **varying effects** are predictors whose effects that vary across clusters (e.g. intercept, herbivory, time)
-- a random effects **term** is the combination of a clustering variable and a set of varying effects
-- a **conditional mode** is the predicted value of the *difference* of a cluster effect from the population mean (slope difference of a subject) (also "BLUPs")
-- the **conditional distribution** is the probability distribution of the conditional modes (Gaussian for LMMs, or Poisson, Beta, Tweedie, ...)
+- **varying effects**: predictors whose effects vary across clusters (e.g. intercept, herbivory, time)
+- random effects **term**: the combination of a clustering variable and a set of varying effects
+- **conditional mode** ("BLUP"): the predicted value of the *difference* of a cluster effect from the population mean
+- **conditional distribution**: distribution of the data (Gaussian, Poisson, binomial, Beta, Tweedie, ...)
 
 ## General definition
 
@@ -395,7 +420,7 @@ the grouping variable;
 - want to combine information across groups
 - have variation in information per level (number of samples or noise level)
 - have a categorical predictor that is a nuisance variable (i.e., not of direct interest, but needs to be controlled for)
-- have more than 5-6 groups that could be considered exchangeable
+- have more than 5-10 levels <footnote content="Economists say 30-50">here</footnote> [@clarkeWhenCanGroup2008; @austinEffectNumberClusters2018]
 
 See also @Crawley2002; @gelman_analysis_2005
 
@@ -404,7 +429,7 @@ See also @Crawley2002; @gelman_analysis_2005
 * average: for *nested* (balanced) LMMs [@murtaugh_simplicity_2007] 
 * use fixed effects (or *two-stage models*) instead of random effects when there are
      * many observations per cluster (shrinkage unimportant)
-     * few clusters (little advantage; bad variance estimates)
+     * few clusters (little advantage in # parameters; bad variance estimates)
 
 # Model setup {.section}
 
@@ -508,7 +533,7 @@ plotfun(fit3)
 
 ##  example covariance matrices
 
-Real example (fire/diversity; blocks are geographic regions)
+@moritzrole2023a (fire/diversity; blocks are geographic regions)
 
 ```{r ecoreg_cov, message=FALSE}
 mod_list <- readRDS("outputs/mod_list.rds")
@@ -555,16 +580,16 @@ $$
     - Categorical predictors, no interactions:  
 	12 effects → $p=78$
     - Numeric predictors, no interactions: 4 effects → $p=10$
-- **BUT** ignoring within-cluster effects is also dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022] (!)
+- **BUT** ignoring within-cluster effects is also dangerous [@schielzeth_conclusions_2009; @heisigWhy2019a; @oberauerImportance2022]
 
 
 # Estimation {.section}
 
 ## Maximum likelihood estimation
 
--   Best fit is a compromise between
-  * consistency of data with fixed effects + conditional modes
-  * consistency of random effect with RE distribution
+- Best fit is a compromise between
+  - consistency of data with fixed effects + conditional modes
+  - consistency of random effect with RE distribution
 - Goodness-of-fit *integrates* over the RE distribution
 
 $$
@@ -726,14 +751,14 @@ xyplot(Reaction ~ Days, data=sleepstudy,
 
 ## Estimation methods
 
-Integrating the likelihood is hard for GLMMs
+Integrating the likelihood is hard (for GLMMs)
 
-- deterministic approximations:
+- **deterministic**
     - penalized quasi-likelihood [@breslow_whither_2004], Laplace, Gauss-Hermite quadrature, … [@biswas2015; @bilodeauStochastic2024]
-	- best methods needed for small clusters
+	- need best methods for small clusters (binary, small # of observations)
 	- available methods depend on problem structure
-    - accuracy (GHQ) vs. flexibility and speed (Laplace, PQL)
-- stochastic approximations (Monte Carlo): mostly Bayesian, some frequentist
+    - accuracy (GHQ) vs. flexibility and speed (PQL, Laplace)
+- **stochastic** (Monte Carlo): mostly Bayesian, some frequentist
     - @booth_maximizing_1999; @gelman_data_2006; @sung_monte_2007; @ponciano_hierarchical_2009; @mcelreath_statistical_2015
     - much slower, but flexible and accurate
 
@@ -756,7 +781,7 @@ tt |> filter(is.na(effect) | effect == "fixed") |>
 * check model assumptions
     * generalizations of linear/GLM diagnostics: residuals vs fitted, scale-location, etc.
 	* conditional modes should be Normally distributed
-	* simulation-based checking (`DHARMa`)
+	* simulation-based residuals (`DHARMa`)
 
 ## Parameter/model interpretation
 
