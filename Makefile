@@ -1,4 +1,4 @@
-ALL: docs/lecture_1.html docs/lecture_2.html docs/lecture_3.html docs/lecture_2.pdf docs/index.html docs/install_pkgs.R docs/glmm_bib.html
+ALL: docs/lecture_1.html docs/lecture_2.html docs/lecture_3.html docs/lecture_2.pdf docs/lecture_2.rmd  docs/index.html docs/install_pkgs.R docs/glmm_bib.html
 
 .SECONDARY:
 
@@ -13,6 +13,9 @@ docs/%.R: %.R
 
 docs/%.pdf: docs/%.html
 	chromium --headless --print-to-pdf=$@ $<
+
+docs/%.rmd: %.rmd
+	cp $< $@
 
 docs/%.html: %.rmd ./glmm.bib
 	mkdir -p docs
