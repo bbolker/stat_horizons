@@ -1,9 +1,10 @@
 
-* streamline??
-   * move stuff to 'extra topics'/mark lecture 2 components as optional?
-* heteroscedasticity?
-* more Julia timing?
-* dotplots with error bars for coef() ? (`lme4` issue)
+- streamline??
+   - move stuff to 'extra topics'/mark lecture 2 components as optional?
+- heteroscedasticity?
+- more Julia timing?
+- dotplots with error bars for coef() ? (`lme4` issue)
+
 
 ## lecture 1
 
@@ -18,6 +19,11 @@ Bates et al (backward p-value) method?
 	  use `crit = LRTalpha(0.2)`
 (equivalent to Matuschek/Bates/Vasishth?)
 
+## extras
+
+- zero-inflation
+- R-squared
+- overdispersion
 
 ## lecture 3: frontiers
 

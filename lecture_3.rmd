@@ -172,7 +172,7 @@ printCoefmat(coef(summary(as_lmerModLmerTest(m1), ddf = "Kenward-Roger")), digit
 - `drop1`, `afex::anova()`
 
 ```{r ci, cache=TRUE, message = FALSE}
-(ci1 <- confint(m1, signames = FALSE))
+(ci1 <- confint(m1, oldNames = FALSE))
 ```
 
 ## Likelihood profiles
@@ -180,7 +180,7 @@ printCoefmat(coef(summary(as_lmerModLmerTest(m1), ddf = "Kenward-Roger")), digit
 Why did `confint()` take so long?
 
 ```{r prof,cache=TRUE,echo=FALSE,fig.width=10}
-pp <- as.data.frame(profile(m1,signames=FALSE)) |>
+pp <- as.data.frame(profile(m1, signames=FALSE)) |>
   transform(.par = factor(.par, levels = unique(.par)))
 
 ci_data <- ci1 |>
@@ -580,3 +580,39 @@ slides > slide:not(.nobackground):after {
 </style>
 
 ## references  {.refs}
+
+::: {#refs}
+:::
+
+# extras
+
+## $R^2$
+
+* goodness-of-fit measures for LMMs, and for GLMMs, are hard
+* meanings of $R^2$ (variance explained; $\textrm{corr}(\textrm{obs}, \textrm{predicted})^2$; etc. don't coincide
+* *pseudo*-$R^2$ for GLMs (MacFadden, Nagelkerke, etc.)
+* various  [@jaeger_r2_2017
+* Nakagawa/Schielzeth/Johnson most popular [@nakagawa_general_2013; @johnson_extension_2014; @nakagawa_coefficient_2017]
+* (?but what about zero-inflation, new distributions, etc. etc. etc.)
+
+## Overdispersion
+
+* "too much" variability (relative to theoretical expectation)
+* very serious for fixed-dispersion families (Poisson, binomial)
+* conjugate-family distributions (negative binomial, Beta-binomial)
+* observation-level random effects [@elston_analysis_2001; @harrison_using_2014; @harrison_comparison_2015]
+* unidentifiable for binary data (unless groupable)
+* not much concern for families with estimated scale/dispersion (but see @hilbe_overdispersion_2011)
+
+## Zero-inflation
+
+* "many zeros does not mean zero-inflation" [@warton_many_2005]
+* can't use Vuong test [@wilsonMisuse2015a; @heTest2019]
+* `glmmTMB` or use expectation-maximization (see [here](https://stats.stackexchange.com/q/208829/2126))
+* `DHARMa` can test by simulation
+
+## Causal inference
+
+* I don't go there very much
+* Solve many issues by adding *group mean* as a covariate [@byrnes_causal_2025]
+* Awareness of *general* causal issues: DAGs, mediation/confounding, etc.. [@mcelreath_statistical_2015; @franks_ecology_2025]

@@ -117,7 +117,8 @@ theme_set(theme_bw())
 
 ```{r setup, include=FALSE}
 set.seed(20251028)
-OkIt <- unname(palette.colors(n = 8, palette = "Okabe-Ito"))[-1]
+## Okabe-Ito minus black, yellow
+OkIt <- unname(palette.colors(n = 8, palette = "Okabe-Ito"))[-c(1,5)]
 scale_colour_discrete <- function(...) {
   scale_colour_manual(..., values=OkIt)
 }
@@ -420,7 +421,7 @@ the grouping variable;
 - want to combine information across groups
 - have variation in information per level (number of samples or noise level)
 - have a categorical predictor that is a nuisance variable (i.e., not of direct interest, but needs to be controlled for)
-- have more than 5-10 levels <footnote content="Economists say 30-50">here</footnote> [@clarkeWhenCanGroup2008; @austinEffectNumberClusters2018]
+- have more than <footnote content="Economists say 30-50">5-10 levels</footnote> [@clarkeWhenCanGroup2008; @austinEffectNumberClusters2018]
 
 See also @Crawley2002; @gelman_analysis_2005
 
@@ -769,7 +770,7 @@ tt <- readRDS("outputs/banta_fits1.rds")
 tt |> filter(is.na(effect) | effect == "fixed") |>
   ggplot(aes(estimate, term, colour = method)) +
   geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
-                  position = position_dodge(width = 0.25, reverse = TRUE)) +
+                  position = position_dodge(width = 0.35, reverse = TRUE)) +
   geom_vline(xintercept = 0, lty = 2)
 ```
 
