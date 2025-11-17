@@ -321,8 +321,8 @@ invisible(dev.off())
 * quasi-Bayesian approach: *regularize*
 * add a penalty (== prior) to keep estimates away from zero/boundaries
 * @chung_nondegenerate_2013: add a weak prior that prevents singularity
-* `blme`, `glmmTMB` packages
-* useful in other cases (complete separation in logistic models)
+* `blme`, `glmmTMB` + prior specification
+* regularization useful in other cases (e.g. complete separation in logistic models)
 
 ## Simplifying random effect terms
 
@@ -601,8 +601,8 @@ slides > slide:not(.nobackground):after {
 * very serious for fixed-dispersion families (Poisson, binomial)
 * conjugate-family distributions (negative binomial, Beta-binomial)
 * observation-level random effects [@elston_analysis_2001; @harrison_using_2014; @harrison_comparison_2015]
-* unidentifiable for binary data (unless groupable)
-* not much concern for families with estimated scale/dispersion (but see @hilbe_overdispersion_2011)
+* unidentifiable for binary data (unless groupable), Gaussian data
+* little concern for families with estimated scale/dispersion (but see @hilbe_overdispersion_2011)
 
 ## Zero-inflation
 
@@ -616,3 +616,10 @@ slides > slide:not(.nobackground):after {
 * I don't go there very much
 * Solve many issues by adding *group mean* as a covariate [@byrnes_causal_2025]
 * Awareness of *general* causal issues: DAGs, mediation/confounding, etc.. [@mcelreath_statistical_2015; @franks_ecology_2025]
+
+## Heteroscedasticity
+
+* can be an issue (especially among groups)
+* log transformation (for continuous positive data) often resolves both linearity and heteroscedasticity
+* `glmmTMB`, `nlme`
+* build into observation-level REs
