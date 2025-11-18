@@ -140,6 +140,7 @@ scale_fill_discrete <- function(...) {
    * Doug Bates, Martin Mächler, Steve Walker (`lme4`)
    * Kasper Kristensen, Mollie Brooks (`glmmTMB`)
 * the R community, `r-sig-mixed-models` denizens, bug reporters ...
+* McMaster, NSERC, Univ Florida, US NSF, BIRS
 
 ## Mixed models 
 
