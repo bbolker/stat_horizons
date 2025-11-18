@@ -13,6 +13,7 @@ author: Ben Bolker
 * lecture 2 [live coding] ([HTML](lecture_2.html), [PDF](lecture_2.pdf))
 * lecture 3 ([HTML](lecture_3.html), [PDF](lecture_3.pdf))
 * [ridiculously complete bibliography](glmm_bib.html)
+* [scratch notes from the lecture](scratch_notes.R)
 
 ## Setup material
 
