@@ -19,15 +19,7 @@ Bates et al (backward p-value) method?
 	  use `crit = LRTalpha(0.2)`
 (equivalent to Matuschek/Bates/Vasishth?)
 
-## extras
-
-- zero-inflation
-- R-squared
-- overdispersion
-
 ## lecture 3: frontiers
 
 * source tinyplots/allFits images? (`R/misc/plot_allFit.R`; also pivot/tidy?)
-* causal inference? (DAGs etc; Mundlak)
-* zero-inflation etc etc?
 

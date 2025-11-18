@@ -133,6 +133,14 @@ scale_fill_discrete <- function(...) {
 
 # Overview {.section}
 
+## Acknowledgements
+
+* shoulders of giants
+* especially
+   * Doug Bates, Martin Mächler, Steve Walker (`lme4`)
+   * Kasper Kristensen, Mollie Brooks (`glmmTMB`)
+* the R community, `r-sig-mixed-models` denizens, bug reporters ...
+
 ## Mixed models 
 
 * *tabular* data (row = observation, column = variable)
