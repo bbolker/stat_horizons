@@ -344,7 +344,7 @@ ggplot(sleepstudy, aes(Days, Reaction, group =Subject)) + geom_point() + geom_li
 $$
 \begin{split}
 y_{ij} & = \beta_0 + \beta_1 x_{ij} + \epsilon_{0,ij} + \epsilon_{1,j} \\
-& = (\beta_0 + \epsilon_{1,j}) + \beta_1 x_{ij} + \epsilon_{1,j} \\
+& = (\beta_0 + \epsilon_{1,j}) + \beta_1 x_{ij} + \epsilon_{0,ij} \\
 \epsilon_{0,ij} & \sim \textrm{Normal}(0,\sigma_0^2) \\
 \epsilon_{1,j} & \sim \textrm{Normal}(0,\sigma_1^2)
 \end{split}
@@ -359,7 +359,7 @@ $$
 \begin{split}
 y_{ij} & = \beta_0 + \beta_1 x_{ij} + \epsilon_{0,ij} + \epsilon_{1,j} +
 \epsilon_{2,j} x_{ij} \\
-& = (\beta_0 + \epsilon_{1,j}) + (\beta_1 + \epsilon_{2,j}) x_{ij})  \\
+& = (\beta_0 + \epsilon_{1,j}) + (\beta_1 + \epsilon_{2,j}) x_{ij} +  \epsilon_{0,ij} \\
 \epsilon_{0,ij} & \sim \textrm{Normal}(0,\sigma_0^2) \\
 \{\epsilon_{1,j}, \epsilon_{2,j}\} & \sim \textrm{MVN}(0,\Sigma)
 \end{split}
@@ -502,7 +502,7 @@ Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/
 
 - Nested: `(1|f/g)` $\equiv$ `(1|f) + (1|f:g)`. Subplots vary within plots, no commonality across plots
 - Crossed: `(1|f) + (1|g)`. Years vary; plots vary independently
-- Crossed+: `(1|f*g)` $\equiv$ `(1|f) + (1|g) + (1|f:g)`. Years vary, plots vary independently, plots vary within years (need >1 observation per plot/year combination).
+- Crossed+: `(1|f*g)` $\equiv$ `(1|f) + (1|g) + (1|f:g)`. Years vary, plots vary independently, plots vary within years (need >1 observation per plot/year combination, for LMMs).
 
 **Don't need explicit nesting** if sub-groups are uniquely labeled (i.e. `A1`, `A2`, ..., `B1`, `B2`, ...)
 
@@ -531,7 +531,7 @@ plotfun(fit2)
 
 ##  example covariance matrices
 
-* 5 groups, 2 effects (v1) × 5 groups, 1 effect (v1)
+* 5 groups, 2 effects (v1) × 5 groups, 1 effect (v2)
 
 ```{r plotcov3, message=FALSE}
 fit3 <- simfun(c(5, 5), c(2, 1), 3,

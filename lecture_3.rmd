@@ -263,8 +263,8 @@ knitr::include_graphics("pix/sing3d_crop.png")
 ## Why are fits singular?
 
 Essentially, because the *observed* among-group variation is less than
-the *expected* among-group variation $\left( = \frac{\sigma^2_{\textrm{among}} +
-\sigma^2_{\textrm{within}}}{n} \right)$. More generally, because *some* dimension
+the *expected* among-group variation $ = \sigma^2_{\textrm{among}} + 
+\frac{\sigma^2_{\textrm{within}}}{n}$. More generally, because *some* dimension
 of the variance-covariance matrix has zero extent ...
 
 ```{r singsims,echo=FALSE,fig.width=7,fig.height=4,cache=TRUE,message=FALSE,warning=FALSE}
